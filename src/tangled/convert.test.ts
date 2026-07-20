@@ -112,4 +112,113 @@ describe('toTangled', () => {
       expect(result.environment).toBeUndefined();
     });
   });
+
+  describe('uses', () => {
+    it('converts actions/setup-node to a nodejs nixpkgs dependency', () => {
+      const result = toTangled(
+        workflow({
+          jobs: { build: { steps: [{ uses: 'actions/setup-node@v4' }] } },
+        }),
+      );
+
+      expect(result).toMatchObject({ dependencies: { nixpkgs: ['nodejs'] } });
+      expect(result.steps).toBeUndefined();
+    });
+
+    it('selects the matching nodejs major from node-version', () => {
+      const result = toTangled(
+        workflow({
+          jobs: {
+            build: {
+              steps: [
+                { uses: 'actions/setup-node@v4', with: { 'node-version': 20 } },
+              ],
+            },
+          },
+        }),
+      );
+
+      expect(result).toMatchObject({
+        dependencies: { nixpkgs: ['nodejs_20'] },
+      });
+    });
+
+    it('parses a major from a non-numeric node-version selector', () => {
+      const result = toTangled(
+        workflow({
+          jobs: {
+            build: {
+              steps: [
+                {
+                  uses: 'actions/setup-node@v4',
+                  with: { 'node-version': '18.x' },
+                },
+              ],
+            },
+          },
+        }),
+      );
+
+      expect(result).toMatchObject({
+        dependencies: { nixpkgs: ['nodejs_18'] },
+      });
+    });
+
+    it('falls back to nodejs for an unparseable node-version', () => {
+      const result = toTangled(
+        workflow({
+          jobs: {
+            build: {
+              steps: [
+                {
+                  uses: 'actions/setup-node@v4',
+                  with: { 'node-version': 'lts/*' },
+                },
+              ],
+            },
+          },
+        }),
+      );
+
+      expect(result).toMatchObject({ dependencies: { nixpkgs: ['nodejs'] } });
+    });
+
+    it('keeps run steps alongside dependencies from uses steps', () => {
+      const result = toTangled(
+        workflow({
+          jobs: {
+            build: {
+              steps: [{ uses: 'actions/setup-node@v4' }, { run: 'npm test' }],
+            },
+          },
+        }),
+      );
+
+      expect(result.steps).toEqual([{ command: 'npm test' }]);
+      expect(result).toMatchObject({ dependencies: { nixpkgs: ['nodejs'] } });
+    });
+
+    it('deduplicates dependencies contributed by repeated actions', () => {
+      const result = toTangled(
+        workflow({
+          jobs: {
+            a: { steps: [{ uses: 'actions/setup-node@v4' }] },
+            b: { steps: [{ uses: 'actions/setup-node@v3' }] },
+          },
+        }),
+      );
+
+      expect(result).toMatchObject({ dependencies: { nixpkgs: ['nodejs'] } });
+    });
+
+    it('throws on an unknown action', () => {
+      expect(() =>
+        toTangled(
+          workflow({
+            jobs: { build: { steps: [{ uses: 'some/unknown-action@v1' }] } },
+          }),
+        ),
+      ).toThrow('Unsupported action: some/unknown-action@v1');
+    });
+  });
 });

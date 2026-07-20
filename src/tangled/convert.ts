@@ -1,6 +1,8 @@
 import type {
+  NixeryWorkflow,
   Workflow,
   WorkflowBase,
+  WorkflowCloneOptions,
   WorkflowConstraint,
   WorkflowEvent,
   WorkflowStep,
@@ -11,6 +13,7 @@ import type {
   NormalJob,
   Step as GitHubStep,
 } from '../github/types.js';
+import { convertAction } from './actions/index.js';
 
 /**
  * Workflow-level keys with a tangled representation.
@@ -147,10 +150,43 @@ function toStep(step: GitHubStep): WorkflowStep {
 }
 
 /**
- * Translate a GitHub `jobs` map into a flat list of tangled steps.
+ * The result of translating a GitHub `jobs` map: the tangled steps plus any
+ * engine and workflow configuration contributed by known `uses` actions.
  */
-function toSteps(jobs: GitHubWorkflow['jobs']): WorkflowStep[] {
+type JobsConversion = Required<Pick<NixeryWorkflow, 'steps' | 'dependencies'>> &
+  Pick<NixeryWorkflow, 'clone'>;
+
+/**
+ * Merge `extra` nixery dependencies into `target`, appending packages per
+ * registry without introducing duplicates.
+ */
+function mergeDependencies(
+  target: Record<string, string[]>,
+  extra: Record<string, string[]> | undefined,
+): void {
+  if (!extra) {
+    return;
+  }
+  for (const [registry, packages] of Object.entries(extra)) {
+    const existing = (target[registry] ??= []);
+    for (const pkg of packages) {
+      if (!existing.includes(pkg)) {
+        existing.push(pkg);
+      }
+    }
+  }
+}
+
+/**
+ * Translate a GitHub `jobs` map into tangled steps and the workflow
+ * configuration implied by its `uses` steps. A `run` step becomes a tangled
+ * step; a known `uses` step contributes engine or clone configuration; an
+ * unknown `uses` step throws rather than being silently dropped.
+ */
+function toJobs(jobs: GitHubWorkflow['jobs']): JobsConversion {
   const steps: WorkflowStep[] = [];
+  const dependencies: Record<string, string[]> = {};
+  let clone: WorkflowCloneOptions | undefined;
 
   for (const [id, job] of Object.entries(jobs)) {
     if ('uses' in job) {
@@ -162,18 +198,37 @@ function toSteps(jobs: GitHubWorkflow['jobs']): WorkflowStep[] {
     assertKnownKeys(job, JOB_KEYS, `job "${id}"`);
 
     for (const step of job.steps ?? []) {
+      if (typeof step.uses === 'string') {
+        const conversion = convertAction(step.uses, step);
+        if (!conversion) {
+          throw new Error(`Unsupported action: ${step.uses}`);
+        }
+        mergeDependencies(dependencies, conversion.dependencies);
+        if (conversion.clone) {
+          clone = conversion.clone;
+        }
+        continue;
+      }
+
       steps.push(toStep(step));
     }
   }
 
-  return steps;
+  const result: JobsConversion = { steps, dependencies };
+  if (clone) {
+    result.clone = clone;
+  }
+  return result;
 }
 
 /**
  * Convert the engine-agnostic fields of a GitHub Actions workflow into a
  * tangled workflow base. Engine-specific configuration is handled elsewhere.
  */
-function toTangledBase(workflow: GitHubWorkflow): WorkflowBase {
+function toTangledBase(
+  workflow: GitHubWorkflow,
+  jobs: JobsConversion,
+): WorkflowBase {
   const base: WorkflowBase = {};
 
   const when = toWhen(workflow.on);
@@ -186,9 +241,12 @@ function toTangledBase(workflow: GitHubWorkflow): WorkflowBase {
     base.environment = environment;
   }
 
-  const steps = toSteps(workflow.jobs);
-  if (steps.length > 0) {
-    base.steps = steps;
+  if (jobs.steps.length > 0) {
+    base.steps = jobs.steps;
+  }
+
+  if (jobs.clone) {
+    base.clone = jobs.clone;
   }
 
   return base;
@@ -202,10 +260,17 @@ function toTangledBase(workflow: GitHubWorkflow): WorkflowBase {
 export function toTangled(workflow: GitHubWorkflow): Workflow {
   assertKnownKeys(workflow, WORKFLOW_KEYS, 'workflow');
 
-  const base = toTangledBase(workflow);
+  const jobs = toJobs(workflow.jobs);
+  const base = toTangledBase(workflow, jobs);
 
-  return {
+  const result: NixeryWorkflow = {
     engine: 'nixery',
     ...base,
   };
+
+  if (Object.keys(jobs.dependencies).length > 0) {
+    result.dependencies = jobs.dependencies;
+  }
+
+  return result;
 }
