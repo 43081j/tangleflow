@@ -9,8 +9,10 @@ import type { Workflow } from './tangled/types.js';
 const GITHUB_DIR = '.github/workflows';
 const TANGLED_DIR = '.tangled/workflows';
 const YAML_EXTENSIONS = ['.yml', '.yaml'] as const;
-const BIN_NAME = 'tangled-actions';
-const USAGE = `Usage: ${BIN_NAME} --target=<tangled|gh> [file...]
+const BIN_NAME = 'tangleflow';
+const USAGE = `🪢 tangleflow
+
+Usage: ${BIN_NAME} --target=<tangled|gh> [file...]
 
 Convert workflows between GitHub Actions and tangled.
 
