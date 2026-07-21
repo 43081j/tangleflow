@@ -1,7 +1,7 @@
 # 🪢 tangleflow
 
 Converts [GitHub Actions](https://docs.github.com/actions) workflows into
-[tangled](https://tangled.sh) workflows and vice versa.
+[tangled](https://tangled.org) workflows and vice versa.
 
 Use it as a command-line tool to convert the workflow files in a repository, or
 as a library to convert parsed workflow objects in your own code.
