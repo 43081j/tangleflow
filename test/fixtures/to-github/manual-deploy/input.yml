@@ -1,0 +1,8 @@
+engine: nixery
+when:
+  - event: manual
+  - event: push
+    tag:
+      - "v*"
+steps:
+  - command: ./deploy.sh

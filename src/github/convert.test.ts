@@ -1,7 +1,18 @@
+import { readdir, readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
+import { parse, stringify } from 'yaml';
 import { convertWorkflow } from './convert.js';
 import type { Workflow } from '../tangled/types.js';
 import type { NormalJob } from './types.js';
+
+const fixturesDir = fileURLToPath(
+  new URL('../../test/fixtures/to-github', import.meta.url),
+);
+
+const fixtures = (await readdir(fixturesDir, { withFileTypes: true }))
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => entry.name);
 
 function nixery(overrides: Partial<Workflow> = {}): Workflow {
   return { engine: 'nixery', ...overrides } as Workflow;
@@ -237,6 +248,29 @@ describe('convertWorkflow', () => {
 
     it('falls back to the default when the basename has no usable characters', () => {
       expect(withJob('---.yml')).toEqual(['build']);
+    });
+  });
+
+  describe('fixtures', () => {
+    it.each(fixtures)('converts %s', async (name) => {
+      const dir = `${fixturesDir}/${name}`;
+      const input = parse(
+        await readFile(`${dir}/input.yml`, 'utf8'),
+      ) as Workflow;
+
+      let output: string;
+      let target: string;
+      try {
+        output = stringify(convertWorkflow(input, `${name}.yml`), {
+          aliasDuplicateObjects: false,
+        });
+        target = `${dir}/output.yml`;
+      } catch (error) {
+        output = `${(error as Error).message}\n`;
+        target = `${dir}/error.txt`;
+      }
+
+      await expect(output).toMatchFileSnapshot(target);
     });
   });
 });
