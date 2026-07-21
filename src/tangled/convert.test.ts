@@ -506,7 +506,7 @@ describe('convertWorkflow', () => {
       .map((entry) => entry.name);
 
     it.each(fixtures)('converts %s', (name) => {
-      const source = readFileSync(`${fixturesDir}/${name}/input.yml`, 'utf8');
+      const source = readFileSync(`${fixturesDir}/${name}/github.yml`, 'utf8');
       const input = parse(source) as GitHubWorkflow;
 
       let result: unknown;

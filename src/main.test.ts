@@ -1,5 +1,6 @@
 import { readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { stringify } from 'yaml';
 import { describe, it, expect } from 'vitest';
 import { convertWorkflowFile } from './main.js';
 
@@ -11,19 +12,22 @@ const fixtures = readdirSync(fixturesDir, { withFileTypes: true })
 
 describe('convertWorkflowFile', () => {
   it.each(fixtures)('handles the %s fixture', async (name) => {
-    let result: unknown;
-    try {
-      result = await convertWorkflowFile(`${fixturesDir}/${name}/input.yml`);
-    } catch (error) {
-      result = { error: (error as Error).message };
-    }
+    const dir = `${fixturesDir}/${name}`;
 
-    expect(result).toMatchSnapshot();
+    try {
+      const pipeline = await convertWorkflowFile(`${dir}/github.yml`);
+      const yaml = stringify(pipeline, { aliasDuplicateObjects: false });
+      await expect(yaml).toMatchFileSnapshot(`${dir}/tangled.yml`);
+    } catch (error) {
+      await expect(`${(error as Error).message}\n`).toMatchFileSnapshot(
+        `${dir}/error.txt`,
+      );
+    }
   });
 
   it('rejects when the file does not exist', async () => {
     await expect(
-      convertWorkflowFile(`${fixturesDir}/does-not-exist/input.yml`),
+      convertWorkflowFile(`${fixturesDir}/does-not-exist/github.yml`),
     ).rejects.toThrow();
   });
 });
