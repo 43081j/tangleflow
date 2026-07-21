@@ -1,0 +1,15 @@
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - run: npm ci --ignore-scripts
+        name: Install Dependencies
+      - run: npm run lint
+        name: Lint
+on:
+  push:
+    branches:
+      - main
+  pull_request: {}
+env:
+  CI: "true"

@@ -44,17 +44,6 @@ array of workflows, one per GitHub job).
 
 Converts a parsed tangled workflow object into a GitHub Actions workflow object.
 
-### `convertWorkflowFile(path)`
-
-Reads a GitHub Actions workflow YAML file from disk and returns the converted
-tangled `Pipeline`. Requires the optional `yaml` peer dependency.
-
-```ts
-import { convertWorkflowFile } from 'tangleflow';
-
-const pipeline = await convertWorkflowFile('.github/workflows/ci.yml');
-```
-
 ## License
 
 [MIT](./LICENSE)

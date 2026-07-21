@@ -1,0 +1,10 @@
+jobs:
+  manual-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - run: ./deploy.sh
+on:
+  workflow_dispatch: {}
+  push:
+    tags:
+      - v*

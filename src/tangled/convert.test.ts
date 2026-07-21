@@ -1,13 +1,17 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { readdir, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
-import { parse } from 'yaml';
+import { parse, stringify } from 'yaml';
 import { convertWorkflow } from './convert.js';
 import type { HttpsJsonSchemastoreOrgGithubWorkflowJson as GitHubWorkflow } from '../github/types.js';
 
 const fixturesDir = fileURLToPath(
-  new URL('../../test/fixtures', import.meta.url),
+  new URL('../../test/fixtures/to-tangled', import.meta.url),
 );
+
+const fixtures = (await readdir(fixturesDir, { withFileTypes: true }))
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => entry.name);
 
 function workflow(overrides: Record<string, unknown> = {}): GitHubWorkflow {
   return {
@@ -501,22 +505,25 @@ describe('convertWorkflow', () => {
   });
 
   describe('fixtures', () => {
-    const fixtures = readdirSync(fixturesDir, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => entry.name);
+    it.each(fixtures)('converts %s', async (name) => {
+      const dir = `${fixturesDir}/${name}`;
+      const input = parse(
+        await readFile(`${dir}/input.yml`, 'utf8'),
+      ) as GitHubWorkflow;
 
-    it.each(fixtures)('converts %s', (name) => {
-      const source = readFileSync(`${fixturesDir}/${name}/github.yml`, 'utf8');
-      const input = parse(source) as GitHubWorkflow;
-
-      let result: unknown;
+      let output: string;
+      let target: string;
       try {
-        result = convertWorkflow(input);
+        output = stringify(convertWorkflow(input), {
+          aliasDuplicateObjects: false,
+        });
+        target = `${dir}/output.yml`;
       } catch (error) {
-        result = { error: (error as Error).message };
+        output = `${(error as Error).message}\n`;
+        target = `${dir}/error.txt`;
       }
 
-      expect(result).toMatchSnapshot();
+      await expect(output).toMatchFileSnapshot(target);
     });
   });
 });

@@ -1,0 +1,16 @@
+engine: nixery
+when:
+  - event: push
+    branch:
+      - main
+  - event: pull_request
+environment:
+  CI: "true"
+steps:
+  - command: npm ci --ignore-scripts
+    name: Install Dependencies
+  - command: npm run lint
+    name: Lint
+dependencies:
+  nixpkgs:
+    - nodejs_24
