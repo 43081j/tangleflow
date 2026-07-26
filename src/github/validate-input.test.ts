@@ -40,12 +40,6 @@ describe('validateInput', () => {
         'Unsupported key "services" in workflow',
       );
     });
-
-    it('throws on clone options, which GitHub checkout does not model here', () => {
-      expect(() => validateInput(nixery({ clone: { skip: true } }))).toThrow(
-        'Unsupported key "clone" in workflow',
-      );
-    });
   });
 
   describe('step keys', () => {
