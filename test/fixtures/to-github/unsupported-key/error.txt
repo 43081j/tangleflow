@@ -1,1 +1,1 @@
-Unsupported workflow key: image
+Unsupported key "image" in workflow

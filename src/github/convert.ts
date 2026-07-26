@@ -15,42 +15,7 @@ import {
   convertMicrovmDependencies,
   convertNixeryDependencies,
 } from './dependencies/convert.js';
-
-/**
- * Tangled workflow keys with a GitHub representation.
- */
-const WORKFLOW_KEYS = new Set<keyof Workflow>([
-  'engine',
-  'when',
-  'environment',
-  'steps',
-  'dependencies',
-]);
-
-/**
- * Tangled step keys with a GitHub representation.
- */
-const STEP_KEYS = new Set<keyof WorkflowStep>([
-  'command',
-  'name',
-  'environment',
-]);
-
-/**
- * Throw if `value` has any key not listed in `known`. `context` labels the
- * offending location in the error message.
- */
-function assertKnownKeys<T extends object>(
-  value: T,
-  known: Set<keyof T>,
-  context: string,
-): void {
-  for (const key of Object.keys(value)) {
-    if (!known.has(key as keyof T)) {
-      throw new Error(`Unsupported ${context} key: ${key}`);
-    }
-  }
-}
+import { validateInput } from './validate-input.js';
 
 /**
  * Tangled event names mapped to their GitHub equivalent.
@@ -157,8 +122,6 @@ function toJobId(path: string | undefined): string {
  * Translate a single tangled step into a GitHub step.
  */
 function toStep(step: WorkflowStep): GitHubStep {
-  assertKnownKeys(step, STEP_KEYS, 'step');
-
   const result: GitHubStep = { run: step.command };
 
   if (step.name) {
@@ -229,7 +192,7 @@ export function convertWorkflow(
   workflow: Workflow,
   path?: string,
 ): GitHubWorkflow {
-  assertKnownKeys(workflow, WORKFLOW_KEYS, 'workflow');
+  validateInput(workflow);
 
   const steps = [
     ...toDependencySteps(workflow),
