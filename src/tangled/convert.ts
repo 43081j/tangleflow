@@ -11,93 +11,11 @@ import type {
   HttpsJsonSchemastoreOrgGithubWorkflowJson as GitHubWorkflow,
   Event as GitHubEvent,
   NormalJob,
-  Permissions,
   Step as GitHubStep,
 } from '../github/types.js';
 import { convertAction } from './actions/convert.js';
 import { groupJobsByNeeds, type JobGroup } from './graph.js';
-
-/**
- * Workflow-level keys with a tangled representation.
- */
-const WORKFLOW_KEYS = new Set<keyof GitHubWorkflow>([
-  'name',
-  'on',
-  'env',
-  'jobs',
-  'permissions',
-  'concurrency',
-]);
-
-/**
- * GitHub job keys with a tangled representation.
- */
-const JOB_KEYS = new Set<keyof NormalJob>([
-  'name',
-  'runs-on',
-  'needs',
-  'steps',
-  'permissions',
-  'concurrency',
-  'timeout-minutes',
-]);
-
-/**
- * GitHub step keys with a tangled representation.
- */
-const STEP_KEYS = new Set<keyof GitHubStep>([
-  'run',
-  'name',
-  'env',
-  'timeout-minutes',
-]);
-
-/**
- * Throw if `value` has any key not listed in `known`. `context` labels the
- * offending location in the error message.
- */
-function assertKnownKeys<T extends object>(
-  value: T,
-  known: Set<keyof T>,
-  context: string,
-): void {
-  for (const key of Object.keys(value)) {
-    if (!known.has(key as keyof T)) {
-      throw new Error(`Unsupported ${context} key: ${key}`);
-    }
-  }
-}
-
-/**
- * Permission scopes whose `write` grant a workflow relies on and tangled cannot
- * provide, since it has no token to push to the repository or publish packages.
- */
-const WRITE_DEPENDENT_SCOPES = ['contents', 'id-token'] as const;
-
-/**
- * Throw if `permissions` grants write access tangled cannot honour. Any other
- * permission configuration has no tangled representation and is dropped.
- */
-function assertPermissions(
-  permissions: Permissions | undefined,
-  context: string,
-): void {
-  if (permissions === 'write-all') {
-    throw new Error(
-      `Unsupported ${context} permissions: write access has no tangled equivalent`,
-    );
-  }
-
-  if (permissions && typeof permissions === 'object') {
-    for (const scope of WRITE_DEPENDENT_SCOPES) {
-      if (permissions[scope] === 'write') {
-        throw new Error(
-          `Unsupported ${context} permissions: "${scope}: write" has no tangled equivalent`,
-        );
-      }
-    }
-  }
-}
+import { validateInput } from './validate-input.js';
 
 /**
  * GitHub event names that have a tangled equivalent, mapped to it. Events
@@ -118,6 +36,7 @@ const FILTER_MAP = {
   tags: 'tag',
   paths: 'paths',
 } as const;
+
 /**
  * Translate a GitHub `on` trigger into a list of tangled `when` constraints.
  * Events tangled does not understand are dropped.
@@ -183,8 +102,6 @@ function toEnvironment(
  * step's name is prefixed with it.
  */
 function toStep(step: GitHubStep, jobId?: string): WorkflowStep {
-  assertKnownKeys(step, STEP_KEYS, 'step');
-
   if (typeof step.run !== 'string') {
     throw new Error('Unsupported step: a `run` command is required');
   }
@@ -282,15 +199,6 @@ function toWorkflow(
   for (const id of group.ids) {
     const job = jobs[id]!;
 
-    if ('uses' in job) {
-      throw new Error(
-        `Unsupported job "${id}": reusable workflow calls have no tangled equivalent`,
-      );
-    }
-
-    assertKnownKeys(job, JOB_KEYS, `job "${id}"`);
-    assertPermissions(job.permissions, `job "${id}"`);
-
     const key = runnerKey(job);
     if (runner === undefined) {
       runner = key;
@@ -332,8 +240,7 @@ function toWorkflow(
  * Throws on any workflow, job, or step configuration that cannot be converted.
  */
 export function convertWorkflow(workflow: GitHubWorkflow): Pipeline {
-  assertKnownKeys(workflow, WORKFLOW_KEYS, 'workflow');
-  assertPermissions(workflow.permissions, 'workflow');
+  validateInput(workflow);
 
   const shared: WorkflowBase = {};
 
