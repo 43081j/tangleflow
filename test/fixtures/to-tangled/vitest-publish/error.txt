@@ -1,1 +1,1 @@
-Unsupported workflow permissions: "contents: write" has no tangled equivalent
+Unsupported permissions in workflow: "contents: write" has no tangled equivalent

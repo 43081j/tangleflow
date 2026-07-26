@@ -13,7 +13,7 @@ export function assertKnownKeys<T extends object>(
 ): void {
   for (const key of Object.keys(value)) {
     if (!known.has(key as keyof T)) {
-      throw new Error(`Unsupported ${context} key: ${key}`);
+      throw new Error(`Unsupported key "${key}" in ${context}`);
     }
   }
 }

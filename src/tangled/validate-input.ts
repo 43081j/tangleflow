@@ -57,7 +57,7 @@ function assertPermissions(
 ): void {
   if (permissions === 'write-all') {
     throw new Error(
-      `Unsupported ${context} permissions: write access has no tangled equivalent`,
+      `Unsupported permissions in ${context}: write access has no tangled equivalent`,
     );
   }
 
@@ -65,7 +65,7 @@ function assertPermissions(
     for (const scope of WRITE_DEPENDENT_SCOPES) {
       if (permissions[scope] === 'write') {
         throw new Error(
-          `Unsupported ${context} permissions: "${scope}: write" has no tangled equivalent`,
+          `Unsupported permissions in ${context}: "${scope}: write" has no tangled equivalent`,
         );
       }
     }

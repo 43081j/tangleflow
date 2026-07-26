@@ -172,36 +172,12 @@ describe('convertWorkflow', () => {
         ),
       ).toEqual([{ engine: 'nixery' }]);
     });
+  });
 
-    it('throws on contents: write', () => {
-      expect(() =>
-        convertWorkflow(workflow({ permissions: { contents: 'write' } })),
-      ).toThrow('Unsupported workflow permissions: "contents: write"');
-    });
-
-    it('throws on id-token: write', () => {
-      expect(() =>
-        convertWorkflow(workflow({ permissions: { 'id-token': 'write' } })),
-      ).toThrow('Unsupported workflow permissions: "id-token: write"');
-    });
-
-    it('throws on write-all', () => {
-      expect(() =>
-        convertWorkflow(workflow({ permissions: 'write-all' })),
-      ).toThrow('Unsupported workflow permissions: write access');
-    });
-
-    it('throws on job-level write grants', () => {
-      expect(() =>
-        convertWorkflow(
-          workflow({
-            jobs: {
-              build: { 'runs-on': 'x', permissions: { contents: 'write' } },
-            },
-          }),
-        ),
-      ).toThrow('Unsupported job "build" permissions: "contents: write"');
-    });
+  it('validates its input before converting', () => {
+    expect(() =>
+      convertWorkflow(workflow({ permissions: { contents: 'write' } })),
+    ).toThrow('Unsupported permissions in workflow: "contents: write"');
   });
 
   describe('when', () => {

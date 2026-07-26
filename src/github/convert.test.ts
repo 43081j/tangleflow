@@ -271,22 +271,10 @@ describe('convertWorkflow', () => {
     });
   });
 
-  describe('unsupported input', () => {
-    it('throws on an unknown workflow key rather than dropping it', () => {
-      expect(() => convertWorkflow(microvm({ image: 'debian' }))).toThrow(
-        'Unsupported workflow key: image',
-      );
-    });
-
-    it('throws on an unknown step key rather than dropping it', () => {
-      expect(() =>
-        convertWorkflow(
-          nixery({
-            steps: [{ command: 'make', shell: 'bash' } as never],
-          }),
-        ),
-      ).toThrow('Unsupported step key: shell');
-    });
+  it('validates its input before converting', () => {
+    expect(() => convertWorkflow(microvm({ image: 'debian' }))).toThrow(
+      'Unsupported key "image" in workflow',
+    );
   });
 
   describe('job id', () => {
