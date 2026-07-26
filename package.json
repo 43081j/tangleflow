@@ -26,7 +26,8 @@
     "lint": "npm run lint:js && npm run lint:format",
     "format": "oxfmt --write src",
     "test": "vitest run",
-    "update-github-types": "node scripts/update-github-types.ts && npm run format"
+    "update-github-types": "node scripts/update-github-types.ts && npm run format",
+    "update-action-refs": "node scripts/update-action-refs.ts && npm run format"
   },
   "keywords": [
     "tangled",

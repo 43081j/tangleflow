@@ -11,10 +11,7 @@ import type {
   Event as GitHubEvent,
   Step as GitHubStep,
 } from './types.js';
-import {
-  convertMicrovmDependencies,
-  convertNixeryDependencies,
-} from './dependencies/convert.js';
+import { convertActions } from './actions/convert.js';
 import { validateInput } from './validate-input.js';
 
 /**
@@ -156,16 +153,6 @@ function toJobs(
 }
 
 /**
- * Translate a tangled workflow's dependencies into the leading `uses` steps
- * that provide them.
- */
-function toDependencySteps(workflow: Workflow): GitHubStep[] {
-  return workflow.engine === 'nixery'
-    ? convertNixeryDependencies(workflow.dependencies)
-    : convertMicrovmDependencies(workflow.dependencies);
-}
-
-/**
  * Convert the engine-agnostic fields of a tangled workflow into a GitHub
  * workflow base. Steps and jobs are handled elsewhere.
  */
@@ -195,7 +182,7 @@ export function convertWorkflow(
   validateInput(workflow);
 
   const steps = [
-    ...toDependencySteps(workflow),
+    ...convertActions(workflow),
     ...(workflow.steps ?? []).map(toStep),
   ];
 

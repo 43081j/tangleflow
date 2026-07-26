@@ -5,6 +5,7 @@ import { parse, stringify } from 'yaml';
 import { convertWorkflow } from './convert.js';
 import type { Workflow } from '../tangled/types.js';
 import type { NormalJob } from './types.js';
+import { ACTION_REFS } from './actions/refs.js';
 
 const fixturesDir = fileURLToPath(
   new URL('../../test/fixtures/to-github', import.meta.url),
@@ -23,8 +24,16 @@ function microvm(overrides: Partial<Workflow> = {}): Workflow {
 }
 
 describe('convertWorkflow', () => {
-  it('produces an empty jobs map and no triggers by default', () => {
-    expect(convertWorkflow(nixery())).toEqual({ jobs: {}, on: {} });
+  it('produces a default job', () => {
+    expect(convertWorkflow(nixery())).toEqual({
+      jobs: {
+        build: {
+          'runs-on': 'ubuntu-latest',
+          steps: [{ uses: ACTION_REFS['actions/checkout'] }],
+        },
+      },
+      on: {},
+    });
   });
 
   describe('on', () => {
@@ -159,9 +168,13 @@ describe('convertWorkflow', () => {
   });
 
   describe('steps', () => {
-    it('produces an empty jobs map when there are no steps', () => {
-      expect(convertWorkflow(nixery()).jobs).toEqual({});
-      expect(convertWorkflow(nixery({ steps: [] })).jobs).toEqual({});
+    it('produces an empty jobs map when there is nothing to run', () => {
+      expect(convertWorkflow(nixery({ clone: { skip: true } })).jobs).toEqual(
+        {},
+      );
+      expect(
+        convertWorkflow(nixery({ clone: { skip: true }, steps: [] })).jobs,
+      ).toEqual({});
     });
 
     it('wraps steps in a single job on the default runner', () => {
@@ -170,7 +183,7 @@ describe('convertWorkflow', () => {
       expect(result.jobs).toEqual({
         build: {
           'runs-on': 'ubuntu-latest',
-          steps: [{ run: 'make' }],
+          steps: [{ uses: ACTION_REFS['actions/checkout'] }, { run: 'make' }],
         },
       });
     });
@@ -185,6 +198,7 @@ describe('convertWorkflow', () => {
       );
 
       expect((result.jobs.build as NormalJob).steps).toEqual([
+        { uses: ACTION_REFS['actions/checkout'] },
         { run: 'npm test', name: 'Test', env: { CI: 'true' } },
       ]);
     });
@@ -197,6 +211,7 @@ describe('convertWorkflow', () => {
       );
 
       expect((result.jobs.build as NormalJob).steps).toEqual([
+        { uses: ACTION_REFS['actions/checkout'] },
         { run: 'a' },
         { run: 'b' },
         { run: 'c' },
@@ -205,7 +220,7 @@ describe('convertWorkflow', () => {
 
     it('omits name and env when the step has neither', () => {
       const result = convertWorkflow(nixery({ steps: [{ command: 'make' }] }));
-      const step = (result.jobs.build as NormalJob).steps![0];
+      const step = (result.jobs.build as NormalJob).steps![1];
 
       expect(step).not.toHaveProperty('name');
       expect(step).not.toHaveProperty('env');
@@ -216,7 +231,7 @@ describe('convertWorkflow', () => {
       const result = convertWorkflow(
         nixery({ steps: [{ command: 'make', environment }] }),
       );
-      const step = (result.jobs.build as NormalJob).steps![0];
+      const step = (result.jobs.build as NormalJob).steps![1]!;
 
       expect(step.env).not.toBe(environment);
     });
@@ -232,6 +247,7 @@ describe('convertWorkflow', () => {
       );
 
       expect((result.jobs.build as NormalJob).steps).toEqual([
+        { uses: ACTION_REFS['actions/checkout'] },
         { uses: 'actions/setup-node@v4', with: { 'node-version': '20' } },
         { run: 'npm test' },
       ]);
@@ -243,6 +259,7 @@ describe('convertWorkflow', () => {
       );
 
       expect((result.jobs.build as NormalJob).steps).toEqual([
+        { uses: ACTION_REFS['actions/checkout'] },
         { uses: 'actions/setup-node@v4' },
       ]);
     });
@@ -253,6 +270,7 @@ describe('convertWorkflow', () => {
       );
 
       expect((result.jobs.build as NormalJob).steps).toEqual([
+        { uses: ACTION_REFS['actions/checkout'] },
         { uses: 'actions/setup-node@v4', with: { 'node-version': '20' } },
         { run: 'make' },
       ]);
@@ -268,6 +286,62 @@ describe('convertWorkflow', () => {
       expect(() =>
         convertWorkflow(nixery({ dependencies: { custom: ['nodejs_20'] } })),
       ).toThrow('Unsupported dependency: custom package "nodejs_20"');
+    });
+  });
+
+  describe('clone', () => {
+    it('checks out before the steps that need the repository', () => {
+      const result = convertWorkflow(
+        nixery({
+          dependencies: { nixpkgs: ['nodejs_20'] },
+          steps: [{ command: 'npm test' }],
+        }),
+      );
+
+      expect((result.jobs.build as NormalJob).steps).toEqual([
+        { uses: ACTION_REFS['actions/checkout'] },
+        { uses: 'actions/setup-node@v4', with: { 'node-version': '20' } },
+        { run: 'npm test' },
+      ]);
+    });
+
+    it('maps depth, submodules and tags onto checkout inputs', () => {
+      const result = convertWorkflow(
+        nixery({
+          clone: { depth: 1, submodules: false, tags: true },
+          steps: [{ command: 'make' }],
+        }),
+      );
+
+      expect((result.jobs.build as NormalJob).steps).toEqual([
+        {
+          uses: ACTION_REFS['actions/checkout'],
+          with: { 'fetch-depth': 1, submodules: false, 'fetch-tags': true },
+        },
+        { run: 'make' },
+      ]);
+    });
+
+    it('leaves unset options to the action defaults', () => {
+      const result = convertWorkflow(
+        nixery({ clone: { depth: 0 }, steps: [{ command: 'make' }] }),
+      );
+
+      expect((result.jobs.build as NormalJob).steps).toEqual([
+        { uses: ACTION_REFS['actions/checkout'], with: { 'fetch-depth': 0 } },
+        { run: 'make' },
+      ]);
+    });
+
+    it('drops the checkout step when the clone is skipped', () => {
+      const result = convertWorkflow(
+        nixery({
+          clone: { skip: true, depth: 1 },
+          steps: [{ command: 'make' }],
+        }),
+      );
+
+      expect((result.jobs.build as NormalJob).steps).toEqual([{ run: 'make' }]);
     });
   });
 

@@ -7,6 +7,7 @@ import { assertKnownKeys } from '../validation.js';
 const WORKFLOW_KEYS = new Set<keyof Workflow>([
   'engine',
   'when',
+  'clone',
   'environment',
   'steps',
   'dependencies',

@@ -1,5 +1,6 @@
+import type { ActionConverter } from './types.js';
 import type { Step as GitHubStep } from '../types.js';
-import { convertNodejs } from './nodejs.js';
+import { convertNodejs } from './setup-node.js';
 
 type PackageConverter = (
   registry: string,
@@ -30,7 +31,7 @@ function convertPackage(registry: string, pkg: string): GitHubStep {
  * Convert a nixery `dependencies` map into the `uses` steps that provide its
  * packages, in registry then declaration order.
  */
-export function convertNixeryDependencies(
+function convertNixeryDependencies(
   dependencies: Record<string, string[]> | undefined,
 ): GitHubStep[] {
   const steps: GitHubStep[] = [];
@@ -47,10 +48,19 @@ export function convertNixeryDependencies(
  * packages, in order. A microvm's packages carry no registry, so they are
  * resolved against nixpkgs.
  */
-export function convertMicrovmDependencies(
+function convertMicrovmDependencies(
   dependencies: string[] | undefined,
 ): GitHubStep[] {
   return (dependencies ?? []).map((pkg) =>
     convertPackage(DEFAULT_REGISTRY, pkg),
   );
 }
+
+/**
+ * Map a tangled workflow's dependencies onto the `uses` steps that provide
+ * them, resolving each package against the engine that declared it.
+ */
+export const convertDependencies: ActionConverter = (workflow) =>
+  workflow.engine === 'nixery'
+    ? convertNixeryDependencies(workflow.dependencies)
+    : convertMicrovmDependencies(workflow.dependencies);
