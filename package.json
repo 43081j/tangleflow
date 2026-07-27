@@ -21,7 +21,7 @@
   "scripts": {
     "build:clean": "node -e \"require('fs').rmSync('./lib', { recursive: true, force: true })\"",
     "build": "npm run build:clean && tsc",
-    "lint:js": "oxlint src",
+    "lint:js": "oxlint src scripts",
     "lint:format": "oxfmt --check src scripts",
     "lint": "npm run lint:js && npm run lint:format",
     "format": "oxfmt --write src scripts",
