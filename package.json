@@ -21,10 +21,10 @@
   "scripts": {
     "build:clean": "node -e \"require('fs').rmSync('./lib', { recursive: true, force: true })\"",
     "build": "npm run build:clean && tsc",
-    "lint:js": "oxlint src",
-    "lint:format": "oxfmt --check src",
+    "lint:js": "oxlint src scripts",
+    "lint:format": "oxfmt --check src scripts",
     "lint": "npm run lint:js && npm run lint:format",
-    "format": "oxfmt --write src",
+    "format": "oxfmt --write src scripts",
     "test": "vitest run",
     "update-github-types": "node scripts/update-github-types.ts && npm run format",
     "update-action-refs": "node scripts/update-action-refs.ts && npm run format"
