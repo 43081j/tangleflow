@@ -80,16 +80,19 @@ ${entries}
 }
 
 async function main(): Promise<void> {
+  console.log(`Resolving latest releases of ${ACTIONS.join(', ')}...`);
+
   const refs = Object.fromEntries(
     await Promise.all(
-      ACTIONS.map(async (action) => {
-        console.log(`Resolving latest release of ${action}...`);
-        const ref = await fetchActionRef(action);
-        console.log(`${action} is ${ref.version} (${ref.sha})`);
-        return [action, ref] as const;
-      }),
+      ACTIONS.map(
+        async (action) => [action, await fetchActionRef(action)] as const,
+      ),
     ),
   );
+
+  for (const [action, { version, sha }] of Object.entries(refs)) {
+    console.log(`${action} is ${version} (${sha})`);
+  }
 
   console.log(`Writing refs to ${OUTPUT_PATH}...`);
   await writeFile(OUTPUT_PATH, render(refs));
