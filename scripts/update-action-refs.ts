@@ -1,5 +1,5 @@
-import {writeFile} from 'node:fs/promises';
-import {join} from 'node:path';
+import { writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 
 /**
  * The actions we emit, whose latest releases get pinned by SHA.
@@ -17,13 +17,13 @@ async function fetchJson(url: string): Promise<unknown> {
   const response = await fetch(url, {
     headers: {
       accept: 'application/vnd.github+json',
-      'user-agent': 'tangleflow-update-action-refs'
-    }
+      'user-agent': 'tangleflow-update-action-refs',
+    },
   });
 
   if (!response.ok) {
     throw new Error(
-      `Failed to fetch ${url}: ${response.status} ${response.statusText}`
+      `Failed to fetch ${url}: ${response.status} ${response.statusText}`,
     );
   }
 
@@ -36,31 +36,31 @@ async function fetchJson(url: string): Promise<unknown> {
  */
 async function fetchActionRef(action: string): Promise<ActionRef> {
   const release = (await fetchJson(
-    `https://api.github.com/repos/${action}/releases/latest`
-  )) as {tag_name: string};
+    `https://api.github.com/repos/${action}/releases/latest`,
+  )) as { tag_name: string };
   const version = release.tag_name;
 
   const ref = (await fetchJson(
-    `https://api.github.com/repos/${action}/git/ref/tags/${version}`
-  )) as {object: {type: string; sha: string; url: string}};
+    `https://api.github.com/repos/${action}/git/ref/tags/${version}`,
+  )) as { object: { type: string; sha: string; url: string } };
 
-  let {sha, type} = ref.object;
+  let { sha, type } = ref.object;
 
   if (type === 'tag') {
     const tag = (await fetchJson(ref.object.url)) as {
-      object: {sha: string};
+      object: { sha: string };
     };
     sha = tag.object.sha;
   }
 
-  return {version, sha};
+  return { version, sha };
 }
 
 function render(refs: Record<string, ActionRef>): string {
   const entries = Object.entries(refs)
     .map(
-      ([action, {version, sha}]) =>
-        `  /**\n   * ${version}\n   */\n  '${action}': '${action}@${sha}'`
+      ([action, { version, sha }]) =>
+        `  /**\n   * ${version}\n   */\n  '${action}': '${action}@${sha}'`,
     )
     .join(',\n');
 
