@@ -80,13 +80,16 @@ ${entries}
 }
 
 async function main(): Promise<void> {
-  const refs: Record<string, ActionRef> = {};
-
-  for (const action of ACTIONS) {
-    console.log(`Resolving latest release of ${action}...`);
-    refs[action] = await fetchActionRef(action);
-    console.log(`${action} is ${refs[action].version} (${refs[action].sha})`);
-  }
+  const refs = Object.fromEntries(
+    await Promise.all(
+      ACTIONS.map(async (action) => {
+        console.log(`Resolving latest release of ${action}...`);
+        const ref = await fetchActionRef(action);
+        console.log(`${action} is ${ref.version} (${ref.sha})`);
+        return [action, ref] as const;
+      }),
+    ),
+  );
 
   console.log(`Writing refs to ${OUTPUT_PATH}...`);
   await writeFile(OUTPUT_PATH, render(refs));
