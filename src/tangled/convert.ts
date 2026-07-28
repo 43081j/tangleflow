@@ -167,6 +167,9 @@ function addSteps(
       if (conversion.clone) {
         result.clone = conversion.clone;
       }
+      if (conversion.steps) {
+        result.steps.push(...conversion.steps);
+      }
       continue;
     }
 

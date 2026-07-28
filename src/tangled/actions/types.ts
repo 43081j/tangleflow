@@ -1,4 +1,4 @@
-import type { WorkflowCloneOptions } from '../types.js';
+import type { WorkflowCloneOptions, WorkflowStep } from '../types.js';
 import type { Step as GitHubStep } from '../../github/types.js';
 
 /**
@@ -15,6 +15,11 @@ export interface ActionConversion {
    * Clone behaviour for the workflow's checkout.
    */
   clone?: WorkflowCloneOptions;
+
+  /**
+   * Steps the action's behaviour translates to, in execution order.
+   */
+  steps?: WorkflowStep[];
 }
 
 /**
