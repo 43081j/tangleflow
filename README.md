@@ -12,9 +12,9 @@ as a library to convert parsed workflow objects in your own code.
 npx tangleflow --target=<tangled|gh> [file...]
 ```
 
-| Option | Description |
-| --- | --- |
-| `--target=tangled` | Convert GitHub Actions workflows to tangled |
+| Option                           | Description                                 |
+| -------------------------------- | ------------------------------------------- |
+| `--target=tangled`               | Convert GitHub Actions workflows to tangled |
 | `--target=gh`, `--target=github` | Convert tangled workflows to GitHub Actions |
 
 If no files are given, every workflow in the source directory is converted:
@@ -27,6 +27,8 @@ If no files are given, every workflow in the source directory is converted:
 When converting to tangled, each independent job becomes its own
 `.tangled/workflows/<job>.yml` file. Jobs linked by `needs` collapse into a
 single workflow whose steps run in dependency order.
+
+We keep track of what Tangleflow currently supports and what's planned in [COMPATIBILITY.md](./COMPATIBILITY.md).
 
 ## Install (as a library)
 
