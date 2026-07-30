@@ -314,6 +314,22 @@ describe('convertWorkflow', () => {
       ]);
     });
 
+    it('applies clone config contributed by a checkout step', () => {
+      expect(
+        convertWorkflow(
+          workflow({
+            jobs: {
+              build: {
+                steps: [
+                  { uses: 'actions/checkout@v4', with: { 'fetch-depth': 0 } },
+                ],
+              },
+            },
+          }),
+        ),
+      ).toEqual([{ engine: 'nixery', clone: { depth: 0 } }]);
+    });
+
     it('deduplicates dependencies contributed by repeated actions', () => {
       expect(
         convertWorkflow(
