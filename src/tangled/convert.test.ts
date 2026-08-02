@@ -347,6 +347,38 @@ describe('convertWorkflow', () => {
       ).toEqual([{ engine: 'nixery', dependencies: { nixpkgs: ['nodejs'] } }]);
     });
 
+    it('inserts action-contributed steps at the position of their uses step', () => {
+      expect(
+        convertWorkflow(
+          workflow({
+            jobs: {
+              build: {
+                steps: [
+                  { run: 'echo before' },
+                  { uses: 'actions/checkout@v4' },
+                  {
+                    uses: 'pnpm/action-setup@v6',
+                    with: { version: 11, run_install: true },
+                  },
+                  { run: 'pnpm test' },
+                ],
+              },
+            },
+          }),
+        ),
+      ).toEqual([
+        {
+          engine: 'nixery',
+          steps: [
+            { command: 'echo before' },
+            { command: 'pnpm install --recursive' },
+            { command: 'pnpm test' },
+          ],
+          dependencies: { nixpkgs: ['pnpm_11'] },
+        },
+      ]);
+    });
+
     it('throws on an unknown action', () => {
       expect(() =>
         convertWorkflow(
