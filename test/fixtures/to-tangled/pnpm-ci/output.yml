@@ -1,0 +1,30 @@
+- engine: nixery
+  when:
+    - event: push
+      branch:
+        - main
+    - event: pull_request
+  steps:
+    - command: pnpm install --frozen-lockfile --ignore-scripts
+      name: Install Dependencies
+    - command: pnpm run lint
+      name: Lint
+  dependencies:
+    nixpkgs:
+      - pnpm_10
+      - nodejs_24
+- engine: nixery
+  when:
+    - event: push
+      branch:
+        - main
+    - event: pull_request
+  steps:
+    - command: pnpm install --frozen-lockfile --ignore-scripts
+      name: Install Dependencies
+    - command: pnpm test
+      name: Test
+  dependencies:
+    nixpkgs:
+      - pnpm_10
+      - nodejs_24
