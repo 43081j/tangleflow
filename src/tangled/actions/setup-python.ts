@@ -21,6 +21,11 @@ function toNixPackage(
     return 'graalvmPackages.graalpy';
   }
 
+  // Throw on range for now
+  if (/[<>=~^|*]| - /.test(asString)) {
+    throw new Error(`Unsupported python-version range: "${asString}"`);
+  }
+
   const match =
     /^(?:(?<implementation>pypy)-?)?(?<major>\d+)(?:\.(?<minor>\d+)(?:\.\d+)?(?<tSuffix>t)?)?/.exec(
       asString,

@@ -60,8 +60,26 @@ describe('convertSetupPython', () => {
     ).toEqual({ dependencies: { nixpkgs: ['python314FreeThreading'] } });
   });
 
-  // TODO: ranges?
-  //(for free threaded builds the 'freethreaded' input has to be explicitly used if you want to use ranges)
+  it('maps a wildcard version to the floating python package', () => {
+    expect(convertSetupPython({ with: { 'python-version': '3.x' } })).toEqual({
+      dependencies: { nixpkgs: ['python3'] },
+    });
+  });
+
+  it('throws on a range version', () => {
+    expect(() =>
+      convertSetupPython({ with: { 'python-version': '>=3.9 <3.14' } }),
+    ).toThrow('Unsupported python-version range: ">=3.9 <3.14"');
+  });
+
+  it('throws on a hyphen range version', () => {
+    expect(() =>
+      convertSetupPython({
+        with: { 'python-version': '3.13.0-alpha - 3.13.0' },
+      }),
+    ).toThrow('Unsupported python-version range: "3.13.0-alpha - 3.13.0"');
+  });
+
   it.skip('python-version-file', () => {
     // TODO
   });
