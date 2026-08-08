@@ -3,46 +3,107 @@ import type { Step as GitHubStep } from '../../github/types.js';
 import { toBoolean } from './inputs.js';
 
 /**
- * Map a `python-version` input onto a nixpkgs package, e.g. `3.12` yields
- * `python312`, `pypy3.11` yields `pypy311` and `3.14t` yields
- * `python314FreeThreading`. GraalPy maps to `graalvmPackages.graalpy`;
+ * Map a `python-version` input, pinned or a range, onto a nixpkgs package.
+ * Handles builds (pypy, graalpy), freethreading and ranges.
  */
 function toNixPackage(
-  value: unknown,
+  pythonVersion: unknown,
   freethreaded: boolean | undefined,
 ): string {
-  if (typeof value !== 'string' && typeof value !== 'number') {
+  if (typeof pythonVersion !== 'string' && typeof pythonVersion !== 'number') {
     return 'python';
   }
 
-  const asString = String(value);
+  const pythonVersionString = String(pythonVersion);
 
-  if (asString.includes('graalpy')) {
+  const implementation = /^(?<name>graalpy|pypy)-?(?<version>.*)$/.exec(
+    pythonVersionString,
+  )?.groups;
+
+  // nixpkgs ships just a single graalpy package
+  if (implementation?.name === 'graalpy') {
     return 'graalvmPackages.graalpy';
   }
 
-  // Throw on range for now
-  if (/[<>=~^|*]| - /.test(asString)) {
-    throw new Error(`Unsupported python-version range: "${asString}"`);
+  // pypy does not ship freethreading builds
+  if (implementation?.name === 'pypy') {
+    const match = /^(?<major>\d+)(?:\.(?<minor>\d+))?/.exec(
+      implementation.version ?? '',
+    );
+    if (match?.groups) {
+      const { major, minor = '' } = match.groups;
+      return `pypy${major}${minor}`;
+    }
+    return 'python';
   }
 
-  const match =
-    /^(?:(?<implementation>pypy)-?)?(?<major>\d+)(?:\.(?<minor>\d+)(?:\.\d+)?(?<tSuffix>t)?)?/.exec(
-      asString,
+  if (/[<>=~^|*]| - |\.x/.test(pythonVersionString)) {
+    // * -> python
+    if (pythonVersionString === '*') {
+      return 'python';
+    }
+
+    // 3.x -> python3
+    const wildcardMinor = /^(?<major>\d+)\.[x*]/.exec(pythonVersionString);
+    if (wildcardMinor?.groups) {
+      const { major } = wildcardMinor.groups;
+      return `python${major}`;
+    }
+
+    // 3.12.x -> python312
+    const wildcardPatch = /^(?<major>\d+)\.(?<minor>\d+)\.[x*]/.exec(
+      pythonVersionString,
     );
+    if (wildcardPatch?.groups) {
+      const { major, minor } = wildcardPatch.groups;
+      return `python${major}${minor}`;
+    }
+
+    // ^3.12.1 -> python3
+    const caret = /^\^(?<major>\d+)/.exec(pythonVersionString);
+    if (caret?.groups) {
+      const { major } = caret.groups;
+      return `python${major}`;
+    }
+
+    // ~3.12.2 -> python312
+    const tilde = /^~(?<major>\d+)\.(?<minor>\d+)/.exec(pythonVersionString);
+    if (tilde?.groups) {
+      const { major, minor } = tilde.groups;
+      return `python${major}${minor}`;
+    }
+
+    // >=3.9 <3.14 -> python313
+    const upperBound = /<\s*(?<major>\d+)\.(?<minor>[1-9]\d*)/.exec(
+      pythonVersionString,
+    );
+    if (upperBound?.groups) {
+      const { major, minor } = upperBound.groups;
+      return `python${major}${Number(minor) - 1}`;
+    }
+
+    // >=3.9 -> python
+    if (
+      /^>=?\s*\d/.test(pythonVersionString) &&
+      !pythonVersionString.includes('<')
+    ) {
+      return 'python';
+    }
+
+    throw new Error(
+      `Unsupported python-version range: "${pythonVersionString}"`,
+    );
+  }
 
   // pinned tags
+  const match =
+    /^(?<major>\d+)(?:\.(?<minor>\d+)(?:\.\d+)?(?<tSuffix>t)?)?/.exec(
+      pythonVersionString,
+    );
   if (match?.groups) {
-    const {
-      implementation = 'python',
-      major,
-      minor = '',
-      tSuffix,
-    } = match.groups;
-    // Free threading builds are only cpython
-    const isFreeThreading =
-      implementation === 'python' && (tSuffix !== undefined || freethreaded);
-    return `${implementation}${major}${minor}${isFreeThreading ? 'FreeThreading' : ''}`;
+    const { major, minor = '', tSuffix } = match.groups;
+    const isFreeThreading = tSuffix !== undefined || freethreaded;
+    return `python${major}${minor}${isFreeThreading ? 'FreeThreading' : ''}`;
   }
 
   return 'python';

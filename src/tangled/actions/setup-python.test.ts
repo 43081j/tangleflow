@@ -66,10 +66,37 @@ describe('convertSetupPython', () => {
     });
   });
 
-  it('throws on a range version', () => {
-    expect(() =>
+  it('maps a minor wildcard to the pinned minor', () => {
+    expect(
+      convertSetupPython({ with: { 'python-version': '3.12.x' } }),
+    ).toEqual({ dependencies: { nixpkgs: ['python312'] } });
+  });
+
+  it('maps a caret range to the major package', () => {
+    expect(
+      convertSetupPython({ with: { 'python-version': '^3.12.1' } }),
+    ).toEqual({ dependencies: { nixpkgs: ['python3'] } });
+  });
+
+  it('maps a tilde range to the pinned minor', () => {
+    expect(
+      convertSetupPython({ with: { 'python-version': '~3.12.2' } }),
+    ).toEqual({ dependencies: { nixpkgs: ['python312'] } });
+  });
+
+  it('maps an unbounded range to the default python', () => {
+    expect(
+      convertSetupPython({ with: { 'python-version': '>= 3.9' } }),
+    ).toEqual({ dependencies: { nixpkgs: ['python'] } });
+  });
+
+  it('maps a bounded range to the newest minor below the exclusive bound', () => {
+    expect(
       convertSetupPython({ with: { 'python-version': '>=3.9 <3.14' } }),
-    ).toThrow('Unsupported python-version range: ">=3.9 <3.14"');
+    ).toEqual({ dependencies: { nixpkgs: ['python313'] } });
+    expect(
+      convertSetupPython({ with: { 'python-version': '>= 3.0 < 3.14' } }),
+    ).toEqual({ dependencies: { nixpkgs: ['python313'] } });
   });
 
   it('throws on a hyphen range version', () => {
