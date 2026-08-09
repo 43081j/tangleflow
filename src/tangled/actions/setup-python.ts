@@ -1,6 +1,6 @@
 import type { ActionConverter } from './types.js';
 import type { Step as GitHubStep } from '../../github/types.js';
-import { toBoolean } from './inputs.js';
+import { toBoolean } from '../actions.js';
 
 /**
  * Map a `python-version` input, pinned or a range, onto a nixpkgs package.

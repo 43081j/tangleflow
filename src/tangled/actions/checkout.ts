@@ -1,7 +1,7 @@
 import type { ActionConverter } from './types.js';
 import type { WorkflowCloneOptions } from '../types.js';
 import type { Step as GitHubStep } from '../../github/types.js';
-import { toBoolean } from './inputs.js';
+import { toBoolean } from '../actions.js';
 
 /**
  * Interpret a `fetch-depth` input as a non-negative integer. Returns
