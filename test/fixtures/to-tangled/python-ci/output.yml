@@ -1,0 +1,12 @@
+- engine: nixery
+  when:
+    - event: push
+      branch:
+        - main
+    - event: pull_request
+  steps:
+    - command: python my_script.py
+      name: My script
+  dependencies:
+    nixpkgs:
+      - python312
