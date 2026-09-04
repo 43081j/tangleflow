@@ -4,6 +4,8 @@ import { convertSetupNode } from './setup-node.js';
 import { convertCheckout } from './checkout.js';
 import { convertPnpmActionSetup } from './pnpm-action-setup.js';
 import { convertSetupPython } from './setup-python.js';
+import { convertUploadArtifact } from './upload-artifact.js';
+import { convertDownloadArtifact } from './download-artifact.js';
 
 export type { ActionConversion, ActionConverter } from './types.js';
 
@@ -15,6 +17,8 @@ const ACTION_CONVERTERS: Record<string, ActionConverter> = {
   'actions/checkout': convertCheckout,
   'pnpm/action-setup': convertPnpmActionSetup,
   'actions/setup-python': convertSetupPython,
+  'actions/upload-artifact': convertUploadArtifact,
+  'actions/download-artifact': convertDownloadArtifact,
 };
 
 /**
