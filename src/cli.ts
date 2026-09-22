@@ -28,7 +28,7 @@ If no file is given, every workflow in the source directory is converted:
 `;
 
 /**
- * List the YAML files in `dir`. A missing directory yields an empty list.
+ * List the YAML files in `dir`. A missing directory is an error.
  */
 async function findWorkflows(dir: string): Promise<string[]> {
   let entries: string[];
@@ -36,7 +36,10 @@ async function findWorkflows(dir: string): Promise<string[]> {
     entries = await readdir(dir);
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-      return [];
+      throw new Error(
+        `No "${dir}" directory found. Does the directory exist, and did you run ${BIN_NAME} from the root of your project?`,
+        { cause: err },
+      );
     }
     throw err;
   }
