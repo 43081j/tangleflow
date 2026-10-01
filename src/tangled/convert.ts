@@ -106,7 +106,9 @@ function toStep(step: GitHubStep, jobId?: string): WorkflowStep {
     throw new Error('Unsupported step: a `run` command is required');
   }
 
-  const result: WorkflowStep = { command: step.run };
+  const result: WorkflowStep = step['working-directory']
+    ? { command: `cd '${step['working-directory']}' || exit 1\n${step.run}` }
+    : { command: step.run };
 
   const name = jobId
     ? step.name
