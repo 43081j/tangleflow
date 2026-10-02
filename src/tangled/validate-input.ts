@@ -39,6 +39,7 @@ const STEP_KEYS = new Set<keyof GitHubStep>([
   'name',
   'env',
   'timeout-minutes',
+  'working-directory',
 ]);
 
 /**

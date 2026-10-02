@@ -63,6 +63,48 @@ describe('convertWorkflow', () => {
     ]);
   });
 
+  describe('working-directory', () => {
+    it('prefixes run command with cd into the directory', () => {
+      expect(
+        convertWorkflow(
+          workflow({
+            jobs: {
+              build: {
+                steps: [
+                  { run: 'npm test', 'working-directory': 'packages/app' },
+                ],
+              },
+            },
+          }),
+        ),
+      ).toEqual([
+        {
+          engine: 'nixery',
+          steps: [{ command: `cd 'packages/app' || exit 1\nnpm test` }],
+        },
+      ]);
+    });
+
+    it('quotes a directory containing spaces', () => {
+      expect(
+        convertWorkflow(
+          workflow({
+            jobs: {
+              build: {
+                steps: [{ run: 'make', 'working-directory': 'my app' }],
+              },
+            },
+          }),
+        ),
+      ).toEqual([
+        {
+          engine: 'nixery',
+          steps: [{ command: `cd 'my app' || exit 1\nmake` }],
+        },
+      ]);
+    });
+  });
+
   it('collapses jobs linked by needs into one ordered workflow', () => {
     expect(
       convertWorkflow(

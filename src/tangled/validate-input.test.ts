@@ -28,7 +28,12 @@ describe('validateInput', () => {
               'timeout-minutes': 10,
               steps: [
                 { uses: 'actions/checkout@v4' },
-                { run: 'make', name: 'Build', env: { A: 'b' } },
+                {
+                  run: 'make',
+                  name: 'Build',
+                  env: { A: 'b' },
+                  'working-directory': 'app',
+                },
               ],
             },
           },
@@ -165,11 +170,11 @@ describe('validateInput', () => {
           workflow({
             jobs: {
               lint: { steps: [{ run: 'npm run lint' }] },
-              test: { steps: [{ run: 'npm test', 'working-directory': '.' }] },
+              test: { steps: [{ run: 'npm test', 'continue-on-error': true }] },
             },
           }),
         ),
-      ).toThrow('Unsupported key "working-directory" in step');
+      ).toThrow('Unsupported key "continue-on-error" in step');
     });
   });
 });
