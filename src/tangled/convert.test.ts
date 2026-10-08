@@ -443,6 +443,144 @@ describe('convertWorkflow', () => {
     });
   });
 
+  describe('strategy', () => {
+    it('converts a matrix into individual workflows', () => {
+      expect(
+        convertWorkflow(
+          workflow({
+            jobs: {
+              test: {
+                strategy: { matrix: { version: [1, 2] } },
+                steps: [{ run: 'echo ${{matrix.version}}' }],
+              },
+            },
+          }),
+        ),
+      ).toEqual([
+        { engine: 'nixery', steps: [{ command: 'echo 1' }] },
+        { engine: 'nixery', steps: [{ command: 'echo 2' }] },
+      ]);
+    });
+
+    it('throws when matrix depends on a job', () => {
+      expect(() =>
+        convertWorkflow(
+          workflow({
+            jobs: {
+              'matrix-job': {
+                strategy: {
+                  matrix: { version: [1, 2] },
+                },
+                steps: [{ run: 'echo ${{matrix.version}}' }],
+              },
+              'depends-on-matrix': {
+                needs: ['matrix-job'],
+                steps: [{ run: 'echo "hello world"' }],
+              },
+            },
+          }),
+        ),
+      ).toThrow('A job depending on a matrix job cannot be converted');
+    });
+    it('throws when a job depends on a matrix', () => {
+      expect(() =>
+        convertWorkflow(
+          workflow({
+            jobs: {
+              foo: {
+                steps: [{ run: 'echo "hello world"' }],
+              },
+              'matrix-job': {
+                needs: ['foo'],
+                strategy: {
+                  matrix: { version: [1, 2] },
+                },
+                steps: [{ run: 'echo ${{matrix.version}}' }],
+              },
+            },
+          }),
+        ),
+      ).toThrow('A matrix job that depends on other jobs cannot be converted');
+    });
+
+    it('throws when a job depends on a matrix', () => {
+      expect(() =>
+        convertWorkflow(
+          workflow({
+            jobs: {
+              foo: {
+                steps: [{ run: 'echo "hello world"' }],
+              },
+              'matrix-job': {
+                needs: ['foo'],
+                strategy: {
+                  matrix: { version: [1, 2] },
+                },
+                steps: [{ run: 'echo ${{matrix.version}}' }],
+              },
+            },
+          }),
+        ),
+      ).toThrow('A matrix job that depends on other jobs cannot be converted');
+    });
+
+    it('throws when a matrix is a template expression', () => {
+      expect(() =>
+        convertWorkflow(
+          workflow({
+            on: {
+              workflow_dispatch: {
+                inputs: {
+                  matrix: {
+                    versions: '[1, 2]',
+                  },
+                },
+              },
+            },
+            jobs: {
+              'matrix-job': {
+                strategy: {
+                  matrix: '${{ fromJSON(inputs.matrix) }}',
+                },
+                steps: [{ run: 'echo ${{matrix.version}}' }],
+              },
+            },
+          }),
+        ),
+      ).toThrow('Cannot convert templated matrix expression');
+    });
+
+    it('throws when a matrix key is a template expression', () => {
+      expect(() =>
+        convertWorkflow(
+          workflow({
+            on: {
+              workflow_dispatch: {
+                inputs: {
+                  versions: '[1, 2]',
+                },
+              },
+            },
+            jobs: {
+              'matrix-job': {
+                strategy: {
+                  matrix: {
+                    versions: '${{ fromJSON(inputs.versions) }}',
+                  },
+                },
+                steps: [{ run: 'echo ${{matrix.version}}' }],
+              },
+            },
+          }),
+        ),
+      ).toThrow('Cannot convert templated matrix key');
+    });
+
+    // TODO: max-parallel and fail-fast?
+    // TODO: include/exclude
+    // TODO: templating?
+  });
+
   describe('fixtures', () => {
     it.each(fixtures)('converts %s', async (name) => {
       const dir = `${fixturesDir}/${name}`;
