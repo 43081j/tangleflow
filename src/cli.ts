@@ -70,12 +70,10 @@ async function convertToTangled(files: string[]): Promise<void> {
   await Promise.all(
     files.map(async (file) => {
       const workflow = parse(await readFile(file, 'utf8')) as GitHubWorkflow;
-      const pipeline = convertWorkflowToTangled(workflow);
-      const jobIds = Object.keys(workflow.jobs ?? {});
+      const workflows = convertWorkflowToTangled(workflow);
 
       await Promise.all(
-        pipeline.map(async (converted, index) => {
-          const name = jobIds[index] ?? stripExtension(file);
+        Object.entries(workflows).map(async ([name, converted]) => {
           const out = join(TANGLED_DIR, `${name}.yml`);
           await writeFile(out, stringify(converted), 'utf8');
           console.log(`wrote ${out}`);

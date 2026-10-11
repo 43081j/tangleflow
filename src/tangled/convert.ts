@@ -1,6 +1,5 @@
 import type {
   NixeryWorkflow,
-  Pipeline,
   Workflow,
   WorkflowBase,
   WorkflowConstraint,
@@ -239,12 +238,14 @@ function toWorkflow(
 }
 
 /**
- * Convert a GitHub Actions workflow into an equivalent tangled pipeline. Jobs
- * linked by `needs` collapse into a single workflow whose steps run in
- * dependency order.
+ * Convert a GitHub Actions workflow into equivalent tangled workflows.
+ * Jobs linked by `needs` collapse into a single workflow whose steps run
+ * in dependency order.
  * Throws on any workflow, job, or step configuration that cannot be converted.
  */
-export function convertWorkflow(workflow: GitHubWorkflow): Pipeline {
+export function convertWorkflow(
+  workflow: GitHubWorkflow,
+): Record<string, Workflow> {
   validateInput(workflow);
 
   const shared: WorkflowBase = {};
@@ -261,5 +262,10 @@ export function convertWorkflow(workflow: GitHubWorkflow): Pipeline {
 
   const jobs = workflow.jobs as Record<string, NormalJob>;
 
-  return groupJobsByNeeds(jobs).map((group) => toWorkflow(group, jobs, shared));
+  const workflows: Record<string, Workflow> = {};
+  for (const group of groupJobsByNeeds(jobs)) {
+    const [firstJobId] = group.ids;
+    workflows[firstJobId!] = toWorkflow(group, jobs, shared);
+  }
+  return workflows;
 }

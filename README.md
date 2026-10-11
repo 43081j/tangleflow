@@ -40,8 +40,9 @@ npm install tangleflow
 
 ### `convertWorkflowToTangled(workflow)`
 
-Converts a parsed GitHub Actions workflow object into a tangled `Pipeline` (an
-array of workflows, one per GitHub job).
+Converts a parsed GitHub Actions workflow object into tangled workflows, as an
+object keyed by workflow name. Jobs linked by `needs` are combined into one
+workflow, named after the first job to run.
 
 ### `convertWorkflowToGitHub(workflow, path)`
 
