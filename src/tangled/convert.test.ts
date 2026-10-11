@@ -451,18 +451,46 @@ describe('convertWorkflow', () => {
             jobs: {
               test: {
                 strategy: { matrix: { version: [1, 2] } },
-                steps: [{ run: 'echo ${{matrix.version}}' }],
+                steps: [
+                  {
+                    name: 'run_with_version_${{ matrix.version }}',
+                    'working-directory': 'projects/${{ matrix.version }}',
+                    run: 'echo ${{matrix.version}}',
+                    env: { version: '${{ matrix.version }}' },
+                  },
+                ],
               },
             },
           }),
         ),
-      ).toEqual([
-        { engine: 'nixery', steps: [{ command: 'echo 1' }] },
-        { engine: 'nixery', steps: [{ command: 'echo 2' }] },
-      ]);
+      ).toEqual({
+        'test-version-1': {
+          engine: 'nixery',
+          steps: [
+            {
+              name: 'run_with_version_1',
+              command: `cd 'projects/1' || exit 1\necho 1`,
+              environment: { version: '1' },
+            },
+          ],
+        },
+        'test-version-2': {
+          engine: 'nixery',
+          steps: [
+            {
+              name: 'run_with_version_2',
+              command: `cd 'projects/2' || exit 1\necho 2`,
+              environment: { version: '2' },
+            },
+          ],
+        },
+      });
     });
 
-    it('throws when matrix depends on a job', () => {
+    // it('with reusable action', () => {});
+    // TODO: substitutes matrix values in step `with` (e.g. setup-node `node-version`)
+
+    it('throws when a job depends on a matrix job', () => {
       expect(() =>
         convertWorkflow(
           workflow({
@@ -482,28 +510,8 @@ describe('convertWorkflow', () => {
         ),
       ).toThrow('A job depending on a matrix job cannot be converted');
     });
-    it('throws when a job depends on a matrix', () => {
-      expect(() =>
-        convertWorkflow(
-          workflow({
-            jobs: {
-              foo: {
-                steps: [{ run: 'echo "hello world"' }],
-              },
-              'matrix-job': {
-                needs: ['foo'],
-                strategy: {
-                  matrix: { version: [1, 2] },
-                },
-                steps: [{ run: 'echo ${{matrix.version}}' }],
-              },
-            },
-          }),
-        ),
-      ).toThrow('A matrix job that depends on other jobs cannot be converted');
-    });
 
-    it('throws when a job depends on a matrix', () => {
+    it('throws when a matrix job depends on another job', () => {
       expect(() =>
         convertWorkflow(
           workflow({
@@ -528,19 +536,10 @@ describe('convertWorkflow', () => {
       expect(() =>
         convertWorkflow(
           workflow({
-            on: {
-              workflow_dispatch: {
-                inputs: {
-                  matrix: {
-                    versions: '[1, 2]',
-                  },
-                },
-              },
-            },
             jobs: {
               'matrix-job': {
                 strategy: {
-                  matrix: '${{ fromJSON(inputs.matrix) }}',
+                  matrix: '${{ fromJSON(vars.TEST_MATRIX) }}',
                 },
                 steps: [{ run: 'echo ${{matrix.version}}' }],
               },
@@ -554,18 +553,11 @@ describe('convertWorkflow', () => {
       expect(() =>
         convertWorkflow(
           workflow({
-            on: {
-              workflow_dispatch: {
-                inputs: {
-                  versions: '[1, 2]',
-                },
-              },
-            },
             jobs: {
               'matrix-job': {
                 strategy: {
                   matrix: {
-                    versions: '${{ fromJSON(inputs.versions) }}',
+                    version: '${{ fromJSON(vars.VERSIONS) }}',
                   },
                 },
                 steps: [{ run: 'echo ${{matrix.version}}' }],
@@ -578,7 +570,6 @@ describe('convertWorkflow', () => {
 
     // TODO: max-parallel and fail-fast?
     // TODO: include/exclude
-    // TODO: templating?
   });
 
   describe('fixtures', () => {
