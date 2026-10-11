@@ -1,4 +1,5 @@
-- engine: nixery
+lint:
+  engine: nixery
   when:
     - event: push
       branch:
@@ -13,7 +14,8 @@
     nixpkgs:
       - pnpm_10
       - nodejs_24
-- engine: nixery
+test:
+  engine: nixery
   when:
     - event: push
       branch:

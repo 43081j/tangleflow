@@ -1,4 +1,5 @@
-- engine: nixery
+lint:
+  engine: nixery
   when:
     - event: push
       branch:
@@ -10,7 +11,8 @@
       name: "test: Test"
     - command: npm run build
       name: "build: Build"
-- engine: nixery
+publish:
+  engine: nixery
   when:
     - event: push
       branch:

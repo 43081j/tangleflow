@@ -1,4 +1,5 @@
-- engine: nixery
+test:
+  engine: nixery
   when:
     - event: push
       branch:
