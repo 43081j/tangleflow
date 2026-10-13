@@ -239,6 +239,29 @@ function toWorkflow(
 }
 
 /**
+ * Look up a matrix value by its path, such as `config.os`, and turn it into
+ * the string GitHub would insert.
+ */
+function resolveMatrixPath(
+  matrixContext: Record<string, Configuration>,
+  path: string,
+): string {
+  let value: unknown = matrixContext;
+  for (const key of path.split('.')) {
+    value =
+      typeof value === 'object' && value !== null
+        ? (value as Record<string, unknown>)[key]
+        : undefined;
+  }
+  if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+    // GitHub inserts the literal string "Object" for an object value
+    return 'Object';
+  }
+  // GitHub evaluates a nonexistent property to an empty string
+  return String(value ?? '');
+}
+
+/**
  * Interpolate matrix values into `${{ matrix.<key> }}` references
  */
 function interpolateMatrixValues(
@@ -247,9 +270,8 @@ function interpolateMatrixValues(
 ): unknown {
   if (typeof input === 'string') {
     return input.replace(
-      /\$\{\{\s?matrix\.([\w-]+)\s?\}\}/g,
-      // GitHub evaluates a nonexistent property to an empty string
-      (_match, key: string) => String(matrixContext[key] ?? ''),
+      /\$\{\{\s?matrix\.([\w-]+(?:\.[\w-]+)*)\s?\}\}/g,
+      (_match, path: string) => resolveMatrixPath(matrixContext, path),
     );
   }
   if (typeof input === 'object' && input !== null && !Array.isArray(input)) {
@@ -264,6 +286,17 @@ function interpolateMatrixValues(
   }
   // number, boolean, null, undefined
   return input;
+}
+
+/**
+ * Turn a matrix value into part of a job id. Object and array values are
+ * flattened into their values, like GitHub does for the job's display name.
+ */
+function toJobIdPart(value: Configuration): string {
+  if (typeof value === 'object') {
+    return Object.values(value).map(toJobIdPart).join('-');
+  }
+  return String(value);
 }
 
 function expandMatrixJobs(
@@ -330,7 +363,7 @@ function expandMatrixJobs(
     for (const combination of matrixCombinations) {
       let newJobId = jobId;
       for (const [key, value] of Object.entries(combination)) {
-        newJobId = `${newJobId}-${key}-${value}`;
+        newJobId = `${newJobId}-${key}-${toJobIdPart(value)}`;
       }
 
       const interpolated = interpolateMatrixValues(

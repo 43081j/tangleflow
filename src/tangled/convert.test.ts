@@ -487,6 +487,42 @@ describe('convertWorkflow', () => {
       });
     });
 
+    it('converts a matrix with an object value', () => {
+      expect(
+        convertWorkflow(
+          workflow({
+            jobs: {
+              test: {
+                strategy: {
+                  matrix: {
+                    config: [
+                      { name: 'project_one', language: 'js' },
+                      { name: 'project_two', language: 'ts' },
+                    ],
+                  },
+                },
+                steps: [
+                  {
+                    name: 'echo',
+                    run: 'echo ${{ matrix.config.name }}-${{ matrix.config.language }}',
+                  },
+                ],
+              },
+            },
+          }),
+        ),
+      ).toEqual({
+        'test-config-project_one-js': {
+          engine: 'nixery',
+          steps: [{ name: 'echo', command: `echo project_one-js` }],
+        },
+        'test-config-project_two-ts': {
+          engine: 'nixery',
+          steps: [{ name: 'echo', command: `echo project_two-ts` }],
+        },
+      });
+    });
+
     // it('with reusable action', () => {});
     // TODO: substitutes matrix values in step `with` (e.g. setup-node `node-version`)
 
