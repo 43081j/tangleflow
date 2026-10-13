@@ -32,14 +32,16 @@ describe('convertWorkflow', () => {
       }),
     );
 
-    expect(result).toEqual([
-      { engine: 'nixery', steps: [{ command: 'npm run lint' }] },
-      { engine: 'nixery', steps: [{ command: 'npm test' }] },
-    ]);
+    expect(result).toEqual({
+      lint: { engine: 'nixery', steps: [{ command: 'npm run lint' }] },
+      test: { engine: 'nixery', steps: [{ command: 'npm test' }] },
+    });
   });
 
   it('produces one bare nixery workflow per job by default', () => {
-    expect(convertWorkflow(workflow())).toEqual([{ engine: 'nixery' }]);
+    expect(convertWorkflow(workflow())).toEqual({
+      build: { engine: 'nixery' },
+    });
   });
 
   it('retains step names and environment', () => {
@@ -53,14 +55,14 @@ describe('convertWorkflow', () => {
           },
         }),
       ),
-    ).toEqual([
-      {
+    ).toEqual({
+      build: {
         engine: 'nixery',
         steps: [
           { command: 'npm test', name: 'Test', environment: { CI: 'true' } },
         ],
       },
-    ]);
+    });
   });
 
   describe('working-directory', () => {
@@ -77,12 +79,12 @@ describe('convertWorkflow', () => {
             },
           }),
         ),
-      ).toEqual([
-        {
+      ).toEqual({
+        build: {
           engine: 'nixery',
           steps: [{ command: `cd 'packages/app' || exit 1\nnpm test` }],
         },
-      ]);
+      });
     });
 
     it('quotes a directory containing spaces', () => {
@@ -96,12 +98,12 @@ describe('convertWorkflow', () => {
             },
           }),
         ),
-      ).toEqual([
-        {
+      ).toEqual({
+        build: {
           engine: 'nixery',
           steps: [{ command: `cd 'my app' || exit 1\nmake` }],
         },
-      ]);
+      });
     });
   });
 
@@ -118,12 +120,12 @@ describe('convertWorkflow', () => {
           },
         }),
       ),
-    ).toEqual([
-      {
+    ).toEqual({
+      lint: {
         engine: 'nixery',
         steps: [{ command: 'npm run lint', name: 'lint' }],
       },
-    ]);
+    });
   });
 
   it('throws when jobs linked by needs run on different runners', () => {
@@ -151,7 +153,7 @@ describe('convertWorkflow', () => {
           },
         }),
       ),
-    ).toEqual([{ engine: 'nixery' }]);
+    ).toEqual({ build: { engine: 'nixery' } });
   });
 
   it('drops job-level concurrency', () => {
@@ -161,7 +163,7 @@ describe('convertWorkflow', () => {
           jobs: { build: { 'runs-on': 'x', concurrency: 'ci' } },
         }),
       ),
-    ).toEqual([{ engine: 'nixery' }]);
+    ).toEqual({ build: { engine: 'nixery' } });
   });
 
   it('drops a job-level name', () => {
@@ -171,7 +173,7 @@ describe('convertWorkflow', () => {
           jobs: { build: { 'runs-on': 'x', name: 'Lint' } },
         }),
       ),
-    ).toEqual([{ engine: 'nixery' }]);
+    ).toEqual({ build: { engine: 'nixery' } });
   });
 
   it('drops timeout-minutes on jobs and steps', () => {
@@ -187,20 +189,22 @@ describe('convertWorkflow', () => {
           },
         }),
       ),
-    ).toEqual([{ engine: 'nixery', steps: [{ command: 'npm test' }] }]);
+    ).toEqual({
+      build: { engine: 'nixery', steps: [{ command: 'npm test' }] },
+    });
   });
 
   describe('permissions', () => {
     it('drops workflow-level permissions with no tangled equivalent', () => {
       expect(
         convertWorkflow(workflow({ permissions: { issues: 'read' } })),
-      ).toEqual([{ engine: 'nixery' }]);
+      ).toEqual({ build: { engine: 'nixery' } });
     });
 
     it('drops an empty permissions map', () => {
-      expect(convertWorkflow(workflow({ permissions: {} }))).toEqual([
-        { engine: 'nixery' },
-      ]);
+      expect(convertWorkflow(workflow({ permissions: {} }))).toEqual({
+        build: { engine: 'nixery' },
+      });
     });
 
     it('drops job-level permissions with no tangled equivalent', () => {
@@ -212,7 +216,7 @@ describe('convertWorkflow', () => {
             },
           }),
         ),
-      ).toEqual([{ engine: 'nixery' }]);
+      ).toEqual({ build: { engine: 'nixery' } });
     });
   });
 
@@ -224,21 +228,21 @@ describe('convertWorkflow', () => {
 
   describe('when', () => {
     it('maps a string trigger to a single constraint', () => {
-      expect(convertWorkflow(workflow({ on: 'push' }))).toEqual([
-        { engine: 'nixery', when: [{ event: 'push' }] },
-      ]);
+      expect(convertWorkflow(workflow({ on: 'push' }))).toEqual({
+        build: { engine: 'nixery', when: [{ event: 'push' }] },
+      });
     });
 
     it('maps workflow_dispatch to manual', () => {
-      expect(convertWorkflow(workflow({ on: 'workflow_dispatch' }))).toEqual([
-        { engine: 'nixery', when: [{ event: 'manual' }] },
-      ]);
+      expect(convertWorkflow(workflow({ on: 'workflow_dispatch' }))).toEqual({
+        build: { engine: 'nixery', when: [{ event: 'manual' }] },
+      });
     });
 
     it('drops a string trigger tangled does not understand', () => {
-      expect(convertWorkflow(workflow({ on: 'schedule' }))).toEqual([
-        { engine: 'nixery' },
-      ]);
+      expect(convertWorkflow(workflow({ on: 'schedule' }))).toEqual({
+        build: { engine: 'nixery' },
+      });
     });
 
     it('maps an array of triggers, dropping unknown ones', () => {
@@ -246,20 +250,23 @@ describe('convertWorkflow', () => {
         convertWorkflow(
           workflow({ on: ['push', 'schedule', 'workflow_dispatch'] }),
         ),
-      ).toEqual([
-        { engine: 'nixery', when: [{ event: 'push' }, { event: 'manual' }] },
-      ]);
+      ).toEqual({
+        build: {
+          engine: 'nixery',
+          when: [{ event: 'push' }, { event: 'manual' }],
+        },
+      });
     });
 
     it('maps an object trigger with no config to bare constraints', () => {
       expect(
         convertWorkflow(workflow({ on: { push: null, pull_request: null } })),
-      ).toEqual([
-        {
+      ).toEqual({
+        build: {
           engine: 'nixery',
           when: [{ event: 'push' }, { event: 'pull_request' }],
         },
-      ]);
+      });
     });
 
     it('drops object-trigger events tangled does not understand', () => {
@@ -267,7 +274,7 @@ describe('convertWorkflow', () => {
         convertWorkflow(
           workflow({ on: { push: null, schedule: [{ cron: '0 0 * * *' }] } }),
         ),
-      ).toEqual([{ engine: 'nixery', when: [{ event: 'push' }] }]);
+      ).toEqual({ build: { engine: 'nixery', when: [{ event: 'push' }] } });
     });
 
     it('maps branches, tags and paths filters to tangled fields', () => {
@@ -283,8 +290,8 @@ describe('convertWorkflow', () => {
             },
           }),
         ),
-      ).toEqual([
-        {
+      ).toEqual({
+        build: {
           engine: 'nixery',
           when: [
             {
@@ -295,27 +302,29 @@ describe('convertWorkflow', () => {
             },
           ],
         },
-      ]);
+      });
     });
 
     it('ignores empty filter arrays', () => {
       expect(
         convertWorkflow(workflow({ on: { push: { branches: [] } } })),
-      ).toEqual([{ engine: 'nixery', when: [{ event: 'push' }] }]);
+      ).toEqual({ build: { engine: 'nixery', when: [{ event: 'push' }] } });
     });
   });
 
   describe('environment', () => {
     it('omits environment when env is absent', () => {
-      expect(convertWorkflow(workflow())).toEqual([{ engine: 'nixery' }]);
+      expect(convertWorkflow(workflow())).toEqual({
+        build: { engine: 'nixery' },
+      });
     });
 
     it('maps env to environment', () => {
       expect(
         convertWorkflow(workflow({ env: { FOO: 'bar', BAZ: 'qux' } })),
-      ).toEqual([
-        { engine: 'nixery', environment: { FOO: 'bar', BAZ: 'qux' } },
-      ]);
+      ).toEqual({
+        build: { engine: 'nixery', environment: { FOO: 'bar', BAZ: 'qux' } },
+      });
     });
 
     it('stringifies non-string env values', () => {
@@ -323,15 +332,15 @@ describe('convertWorkflow', () => {
         convertWorkflow(
           workflow({ env: { COUNT: 3, FLAG: true } as GitHubWorkflow['env'] }),
         ),
-      ).toEqual([
-        { engine: 'nixery', environment: { COUNT: '3', FLAG: 'true' } },
-      ]);
+      ).toEqual({
+        build: { engine: 'nixery', environment: { COUNT: '3', FLAG: 'true' } },
+      });
     });
 
     it('drops a string env expression that cannot be represented as a map', () => {
       expect(
         convertWorkflow(workflow({ env: '${{ fromJSON(env.VARS) }}' })),
-      ).toEqual([{ engine: 'nixery' }]);
+      ).toEqual({ build: { engine: 'nixery' } });
     });
   });
 
@@ -347,13 +356,13 @@ describe('convertWorkflow', () => {
             },
           }),
         ),
-      ).toEqual([
-        {
+      ).toEqual({
+        build: {
           engine: 'nixery',
           steps: [{ command: 'npm test' }],
           dependencies: { nixpkgs: ['nodejs'] },
         },
-      ]);
+      });
     });
 
     it('applies clone config contributed by a checkout step', () => {
@@ -369,7 +378,7 @@ describe('convertWorkflow', () => {
             },
           }),
         ),
-      ).toEqual([{ engine: 'nixery', clone: { depth: 0 } }]);
+      ).toEqual({ build: { engine: 'nixery', clone: { depth: 0 } } });
     });
 
     it('deduplicates dependencies contributed by repeated actions', () => {
@@ -386,7 +395,9 @@ describe('convertWorkflow', () => {
             },
           }),
         ),
-      ).toEqual([{ engine: 'nixery', dependencies: { nixpkgs: ['nodejs'] } }]);
+      ).toEqual({
+        build: { engine: 'nixery', dependencies: { nixpkgs: ['nodejs'] } },
+      });
     });
 
     it('inserts action-contributed steps at the position of their uses step', () => {
@@ -408,8 +419,8 @@ describe('convertWorkflow', () => {
             },
           }),
         ),
-      ).toEqual([
-        {
+      ).toEqual({
+        build: {
           engine: 'nixery',
           steps: [
             { command: 'echo before' },
@@ -418,7 +429,7 @@ describe('convertWorkflow', () => {
           ],
           dependencies: { nixpkgs: ['pnpm_11'] },
         },
-      ]);
+      });
     });
 
     it('throws on an unknown action', () => {
