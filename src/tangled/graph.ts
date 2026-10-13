@@ -13,7 +13,7 @@ export interface JobGroup {
 /**
  * Normalise a job's `needs` into a list of dependency ids.
  */
-function normaliseNeeds(needs: JobNeeds | undefined): string[] {
+export function normaliseNeeds(needs: JobNeeds | undefined): string[] {
   if (needs === undefined) {
     return [];
   }

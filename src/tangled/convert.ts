@@ -11,9 +11,10 @@ import type {
   Event as GitHubEvent,
   NormalJob,
   Step as GitHubStep,
+  Configuration,
 } from '../github/types.js';
 import { convertAction } from './actions/convert.js';
-import { groupJobsByNeeds, type JobGroup } from './graph.js';
+import { groupJobsByNeeds, normaliseNeeds, type JobGroup } from './graph.js';
 import { validateInput } from './validate-input.js';
 
 /**
@@ -238,6 +239,113 @@ function toWorkflow(
 }
 
 /**
+ * Interpolate matrix values into `${{ matrix.<key> }}` references
+ */
+function interpolateMatrixValues(
+  input: unknown,
+  matrixContext: Record<string, Configuration>,
+): unknown {
+  if (typeof input === 'string') {
+    return input.replace(
+      /\$\{\{\s?matrix\.([\w-]+)\s?\}\}/g,
+      // GitHub evaluates a nonexistent property to an empty string
+      (_match, key: string) => String(matrixContext[key] ?? ''),
+    );
+  }
+  if (typeof input === 'object' && input !== null && !Array.isArray(input)) {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(input)) {
+      result[key] = interpolateMatrixValues(value, matrixContext);
+    }
+    return result;
+  }
+  if (Array.isArray(input)) {
+    return input.map((item) => interpolateMatrixValues(item, matrixContext));
+  }
+  // number, boolean, null, undefined
+  return input;
+}
+
+function expandMatrixJobs(
+  jobs: Record<string, NormalJob>,
+): Record<string, NormalJob> {
+  const jobEntries = Object.entries(jobs);
+  const matrixJobIds: string[] = [];
+
+  // Find matrix jobs and check if they depend on anything (and throw if they do)
+  for (const [jobId, job] of jobEntries) {
+    if (job.strategy) {
+      matrixJobIds.push(jobId);
+      if (normaliseNeeds(job.needs).length > 0) {
+        throw new Error(
+          'A matrix job that depends on other jobs cannot be converted',
+        );
+      }
+    }
+  }
+
+  if (matrixJobIds.length === 0) {
+    return jobs;
+  }
+
+  // For any job that depends, if it depends on a matrix job then fail
+  for (const [, job] of jobEntries) {
+    for (const neededJob of normaliseNeeds(job.needs)) {
+      if (matrixJobIds.includes(neededJob)) {
+        throw new Error('A job depending on a matrix job cannot be converted');
+      }
+    }
+  }
+
+  const expandedJobs: Record<string, NormalJob> = {};
+
+  for (const [jobId, job] of jobEntries) {
+    const { strategy, ...rest } = job;
+    if (!strategy) {
+      expandedJobs[jobId] = job;
+      continue;
+    }
+
+    let matrixCombinations: Record<string, Configuration>[] = [{}];
+
+    if (typeof strategy.matrix === 'string') {
+      throw new Error('Cannot convert templated matrix expression');
+    }
+
+    for (const [matrixKey, matrixValues] of Object.entries(strategy.matrix)) {
+      if (typeof matrixValues === 'string') {
+        throw new Error('Cannot convert templated matrix key');
+      }
+
+      matrixCombinations = matrixCombinations.flatMap((existingCombination) => {
+        return matrixValues.map((matrixValue) => {
+          return Object.assign({}, existingCombination, {
+            [matrixKey]: matrixValue,
+          });
+        });
+      });
+    }
+
+    // convert combinations into individual jobs
+    for (const combination of matrixCombinations) {
+      let newJobId = jobId;
+      for (const [key, value] of Object.entries(combination)) {
+        newJobId = `${newJobId}-${key}-${value}`;
+      }
+
+      const interpolated = interpolateMatrixValues(
+        rest,
+        combination,
+      ) as NormalJob;
+
+      expandedJobs[newJobId] = interpolated;
+    }
+  }
+
+  return expandedJobs;
+}
+
+/**
  * Convert a GitHub Actions workflow into equivalent tangled workflows.
  * Jobs linked by `needs` collapse into a single workflow whose steps run
  * in dependency order.
@@ -261,11 +369,12 @@ export function convertWorkflow(
   }
 
   const jobs = workflow.jobs as Record<string, NormalJob>;
+  const expandedJobs = expandMatrixJobs(jobs);
 
   const workflows: Record<string, Workflow> = {};
-  for (const group of groupJobsByNeeds(jobs)) {
+  for (const group of groupJobsByNeeds(expandedJobs)) {
     const [firstJobId] = group.ids;
-    workflows[firstJobId!] = toWorkflow(group, jobs, shared);
+    workflows[firstJobId!] = toWorkflow(group, expandedJobs, shared);
   }
   return workflows;
 }
