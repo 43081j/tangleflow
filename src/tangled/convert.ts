@@ -299,6 +299,26 @@ function toJobIdPart(value: Configuration): string {
   return String(value);
 }
 
+/**
+ * Whether a matrix value matches `pattern`, as GitHub matches `exclude`
+ * entries: an object pattern only has to match the keys it names, and other
+ * values are compared as strings.
+ */
+function matchesMatrixValue(
+  pattern: Configuration,
+  value: Configuration | undefined,
+): boolean {
+  if (typeof pattern === 'object' && !Array.isArray(pattern)) {
+    if (typeof value !== 'object' || Array.isArray(value)) {
+      return false;
+    }
+    return Object.entries(pattern).every(([key, patternValue]) =>
+      matchesMatrixValue(patternValue, value[key]),
+    );
+  }
+  return String(value) === String(pattern);
+}
+
 function expandMatrixJobs(
   jobs: Record<string, NormalJob>,
 ): Record<string, NormalJob> {
@@ -346,6 +366,7 @@ function expandMatrixJobs(
     }
 
     for (const [matrixKey, matrixValues] of Object.entries(strategy.matrix)) {
+      if (matrixKey === 'exclude' || matrixKey === 'include') continue;
       if (typeof matrixValues === 'string') {
         throw new Error('Cannot convert templated matrix key');
       }
@@ -359,8 +380,18 @@ function expandMatrixJobs(
       });
     }
 
+    const excludes = strategy.matrix.exclude ?? [];
+    if (typeof excludes === 'string') {
+      throw new Error('Cannot convert templated matrix exclude');
+    }
+
+    const matrixCombinationsWithoutExcluded = matrixCombinations.filter(
+      (combination) =>
+        !excludes.some((exclude) => matchesMatrixValue(exclude, combination)),
+    );
+
     // convert combinations into individual jobs
-    for (const combination of matrixCombinations) {
+    for (const combination of matrixCombinationsWithoutExcluded) {
       let newJobId = jobId;
       for (const [key, value] of Object.entries(combination)) {
         newJobId = `${newJobId}-${key}-${toJobIdPart(value)}`;

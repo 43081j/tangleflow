@@ -523,8 +523,106 @@ describe('convertWorkflow', () => {
       });
     });
 
+    it('converts a matrix with exclude', () => {
+      expect(
+        convertWorkflow(
+          workflow({
+            jobs: {
+              test: {
+                strategy: {
+                  matrix: {
+                    os: ['linux', 'macos'],
+                    version: [1, 2, 3],
+                    exclude: [{ os: 'linux', version: 1 }, { os: 'macos' }],
+                  },
+                },
+                steps: [
+                  {
+                    name: 'echo',
+                    run: 'echo ${{ matrix.os }}-${{ matrix.version }}',
+                  },
+                ],
+              },
+            },
+          }),
+        ),
+      ).toEqual({
+        'test-os-linux-version-2': {
+          engine: 'nixery',
+          steps: [{ name: 'echo', command: 'echo linux-2' }],
+        },
+        'test-os-linux-version-3': {
+          engine: 'nixery',
+          steps: [{ name: 'echo', command: 'echo linux-3' }],
+        },
+      });
+    });
+
+    it('converts a matrix that excludes object values', () => {
+      expect(
+        convertWorkflow(
+          workflow({
+            jobs: {
+              test: {
+                strategy: {
+                  matrix: {
+                    config: [
+                      { name: 'a', lang: 'js' },
+                      { name: 'b', lang: 'ts' },
+                      { name: 'c', lang: 'py' },
+                    ],
+                    exclude: [
+                      { config: { name: 'a', lang: 'js' } },
+                      { config: { name: 'b' } },
+                    ],
+                  },
+                },
+                steps: [{ run: 'echo ${{ matrix.config.name }}' }],
+              },
+            },
+          }),
+        ),
+      ).toEqual({
+        'test-config-c-py': {
+          engine: 'nixery',
+          steps: [{ command: 'echo c' }],
+        },
+      });
+    });
+
+    // it('converts a matrix with include', () => {
+    //   expect(
+    //     convertWorkflow(
+    //       workflow({
+    //         jobs: {
+    //           test: {
+    //             strategy: {
+    //               matrix: {
+    //                 config: [
+    //                   { name: 'project_one', language: 'js' },
+    //                   { name: 'project_two', language: 'ts' },
+    //                 ],
+    //                 include: {}
+    //               },
+    //             },
+    //             steps: [
+    //               {
+    //                 name: 'echo',
+    //                 run: 'echo ${{ matrix.config.name }}-${{ matrix.config.language }}',
+    //               },
+    //             ],
+    //           },
+    //         },
+    //       }),
+    //     ),
+    //   ).toEqual([]);
+    // });
+
     // it('with reusable action', () => {});
     // TODO: substitutes matrix values in step `with` (e.g. setup-node `node-version`)
+
+    // TODO: max-parallel and fail-fast?
+    // TODO: include/exclude
 
     it('throws when a job depends on a matrix job', () => {
       expect(() =>
@@ -603,9 +701,6 @@ describe('convertWorkflow', () => {
         ),
       ).toThrow('Cannot convert templated matrix key');
     });
-
-    // TODO: max-parallel and fail-fast?
-    // TODO: include/exclude
   });
 
   describe('fixtures', () => {
