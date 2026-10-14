@@ -621,7 +621,6 @@ describe('convertWorkflow', () => {
     // it('with reusable action', () => {});
     // TODO: substitutes matrix values in step `with` (e.g. setup-node `node-version`)
 
-    // TODO: max-parallel and fail-fast?
     // TODO: include/exclude
 
     it('throws when a job depends on a matrix job', () => {
