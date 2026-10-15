@@ -464,7 +464,7 @@ describe('convertWorkflow', () => {
           }),
         ),
       ).toEqual({
-        'test-version-1': {
+        'matrix-test-1': {
           engine: 'nixery',
           steps: [
             {
@@ -474,7 +474,7 @@ describe('convertWorkflow', () => {
             },
           ],
         },
-        'test-version-2': {
+        'matrix-test-2': {
           engine: 'nixery',
           steps: [
             {
@@ -512,11 +512,11 @@ describe('convertWorkflow', () => {
           }),
         ),
       ).toEqual({
-        'test-config-project_one-js': {
+        'matrix-test-1': {
           engine: 'nixery',
           steps: [{ name: 'echo', command: `echo project_one-js` }],
         },
-        'test-config-project_two-ts': {
+        'matrix-test-2': {
           engine: 'nixery',
           steps: [{ name: 'echo', command: `echo project_two-ts` }],
         },
@@ -547,11 +547,11 @@ describe('convertWorkflow', () => {
           }),
         ),
       ).toEqual({
-        'test-os-linux-version-2': {
+        'matrix-test-1': {
           engine: 'nixery',
           steps: [{ name: 'echo', command: 'echo linux-2' }],
         },
-        'test-os-linux-version-3': {
+        'matrix-test-2': {
           engine: 'nixery',
           steps: [{ name: 'echo', command: 'echo linux-3' }],
         },
@@ -583,7 +583,7 @@ describe('convertWorkflow', () => {
           }),
         ),
       ).toEqual({
-        'test-config-c-py': {
+        'matrix-test-1': {
           engine: 'nixery',
           steps: [{ command: 'echo c' }],
         },
@@ -636,11 +636,11 @@ describe('convertWorkflow', () => {
           }),
         ),
       ).toEqual({
-        'test-node-20': {
+        'matrix-test-1': {
           engine: 'nixery',
           dependencies: { nixpkgs: ['nodejs_20'] },
         },
-        'test-node-22': {
+        'matrix-test-2': {
           engine: 'nixery',
           dependencies: { nixpkgs: ['nodejs_22'] },
         },

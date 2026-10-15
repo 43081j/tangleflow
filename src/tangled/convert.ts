@@ -289,17 +289,6 @@ function interpolateMatrixValues(
 }
 
 /**
- * Turn a matrix value into part of a job id. Object and array values are
- * flattened into their values, like GitHub does for the job's display name.
- */
-function toJobIdPart(value: Configuration): string {
-  if (typeof value === 'object') {
-    return Object.values(value).map(toJobIdPart).join('-');
-  }
-  return String(value);
-}
-
-/**
  * Whether a matrix value matches `pattern`, as GitHub matches `exclude`
  * entries: an object pattern only has to match the keys it names, and other
  * values are compared as strings.
@@ -391,18 +380,16 @@ function expandMatrixJobs(
     );
 
     // convert combinations into individual jobs
-    for (const combination of matrixCombinationsWithoutExcluded) {
-      let newJobId = jobId;
-      for (const [key, value] of Object.entries(combination)) {
-        newJobId = `${newJobId}-${key}-${toJobIdPart(value)}`;
-      }
-
+    for (const [
+      index,
+      combination,
+    ] of matrixCombinationsWithoutExcluded.entries()) {
       const interpolated = interpolateMatrixValues(
         rest,
         combination,
       ) as NormalJob;
 
-      expandedJobs[newJobId] = interpolated;
+      expandedJobs[`matrix-${jobId}-${index + 1}`] = interpolated;
     }
   }
 
