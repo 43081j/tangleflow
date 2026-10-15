@@ -28,7 +28,12 @@ When converting to tangled, each independent job becomes its own
 `.tangled/workflows/<job>.yml` file. Jobs linked by `needs` collapse into a
 single workflow whose steps run in dependency order.
 
-We keep track of what Tangleflow currently supports and what's planned in [COMPATIBILITY.md](./COMPATIBILITY.md).
+Tangled has no equivalent of GitHub's [matrix strategy](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/run-job-variations),
+so tangleflow 'flattens' matrices into individual workflows, named `matrix-<job>-1.yml`, `matrix-<job>-2.yml` etc., when possible.[^matrix-needs]
+
+[^matrix-needs]: Matrix jobs are currently not compatible with `needs`: a matrix job can't depend on other jobs, and other jobs can't depend on it.
+
+We keep track of what tangleflow currently supports and what's planned in [COMPATIBILITY.md](./COMPATIBILITY.md).
 
 ## Install (as a library)
 
