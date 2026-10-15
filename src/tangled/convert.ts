@@ -355,19 +355,23 @@ function expandMatrixJobs(
       continue;
     }
 
-    let matrixCombinations: Record<string, Configuration>[] = [{}];
+    let combinations: Record<string, Configuration>[] = [{}];
 
     if (typeof strategy.matrix === 'string') {
       throw new Error('Cannot convert templated matrix expression');
     }
 
-    for (const [matrixKey, matrixValues] of Object.entries(strategy.matrix)) {
-      if (matrixKey === 'exclude' || matrixKey === 'include') continue;
+    const originalKeys = Object.keys(strategy.matrix).filter(
+      (key) => key !== 'include' && key !== 'exclude',
+    );
+
+    for (const matrixKey of originalKeys) {
+      const matrixValues = strategy.matrix[matrixKey]!;
       if (typeof matrixValues === 'string') {
         throw new Error('Cannot convert templated matrix key');
       }
 
-      matrixCombinations = matrixCombinations.flatMap((existingCombination) => {
+      combinations = combinations.flatMap((existingCombination) => {
         return matrixValues.map((matrixValue) => {
           return Object.assign({}, existingCombination, {
             [matrixKey]: matrixValue,
@@ -376,21 +380,52 @@ function expandMatrixJobs(
       });
     }
 
+    // With no matrix keys, drop the empty starting combination so only the include entries run
+    if (originalKeys.length === 0) {
+      combinations = [];
+    }
+
     const excludes = strategy.matrix.exclude ?? [];
     if (typeof excludes === 'string') {
       throw new Error('Cannot convert templated matrix exclude');
     }
 
-    const matrixCombinationsWithoutExcluded = matrixCombinations.filter(
+    const combinationsAfterExclude = combinations.filter(
       (combination) =>
         !excludes.some((exclude) => matchesMatrixValue(exclude, combination)),
     );
 
+    const includes = strategy.matrix.include ?? [];
+    if (typeof includes === 'string') {
+      throw new Error('Cannot convert templated matrix include');
+    }
+
+    // Later include entries never merge into these
+    const combinationsFromInclude: Record<string, Configuration>[] = [];
+    for (const include of includes as Record<string, Configuration>[]) {
+      const matchingCombinations = combinationsAfterExclude.filter(
+        (combination) =>
+          Object.entries(include)
+            .filter(([key]) => originalKeys.includes(key))
+            .every(([key, value]) =>
+              matchesMatrixValue(value, combination[key]),
+            ),
+      );
+
+      for (const combination of matchingCombinations) {
+        Object.assign(combination, include);
+      }
+
+      if (matchingCombinations.length === 0) {
+        combinationsFromInclude.push(Object.assign({}, include));
+      }
+    }
+
     // convert combinations into individual jobs
-    for (const [
-      index,
-      combination,
-    ] of matrixCombinationsWithoutExcluded.entries()) {
+    for (const [index, combination] of [
+      ...combinationsAfterExclude,
+      ...combinationsFromInclude,
+    ].entries()) {
       const interpolated = interpolateMatrixValues(
         rest,
         combination,

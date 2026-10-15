@@ -590,33 +590,94 @@ describe('convertWorkflow', () => {
       });
     });
 
-    // it('converts a matrix with include', () => {
-    //   expect(
-    //     convertWorkflow(
-    //       workflow({
-    //         jobs: {
-    //           test: {
-    //             strategy: {
-    //               matrix: {
-    //                 config: [
-    //                   { name: 'project_one', language: 'js' },
-    //                   { name: 'project_two', language: 'ts' },
-    //                 ],
-    //                 include: {}
-    //               },
-    //             },
-    //             steps: [
-    //               {
-    //                 name: 'echo',
-    //                 run: 'echo ${{ matrix.config.name }}-${{ matrix.config.language }}',
-    //               },
-    //             ],
-    //           },
-    //         },
-    //       }),
-    //     ),
-    //   ).toEqual([]);
-    // });
+    it('converts a matrix with include', () => {
+      // Example from https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/run-job-variations#expanding-or-adding-matrix-configurations
+      expect(
+        convertWorkflow(
+          workflow({
+            jobs: {
+              test: {
+                strategy: {
+                  matrix: {
+                    fruit: ['apple', 'pear'],
+                    animal: ['cat', 'dog'],
+                    include: [
+                      { color: 'green' },
+                      { color: 'pink', animal: 'cat' },
+                      { fruit: 'apple', shape: 'circle' },
+                      { fruit: 'banana' },
+                      { fruit: 'banana', animal: 'cat' },
+                    ],
+                  },
+                },
+                steps: [
+                  {
+                    run: 'echo fruit=${{ matrix.fruit }} animal=${{ matrix.animal }} color=${{ matrix.color }} shape=${{ matrix.shape }}',
+                  },
+                ],
+              },
+            },
+          }),
+        ),
+      ).toEqual({
+        'matrix-test-1': {
+          engine: 'nixery',
+          steps: [
+            { command: 'echo fruit=apple animal=cat color=pink shape=circle' },
+          ],
+        },
+        'matrix-test-2': {
+          engine: 'nixery',
+          steps: [
+            { command: 'echo fruit=apple animal=dog color=green shape=circle' },
+          ],
+        },
+        'matrix-test-3': {
+          engine: 'nixery',
+          steps: [{ command: 'echo fruit=pear animal=cat color=pink shape=' }],
+        },
+        'matrix-test-4': {
+          engine: 'nixery',
+          steps: [{ command: 'echo fruit=pear animal=dog color=green shape=' }],
+        },
+        'matrix-test-5': {
+          engine: 'nixery',
+          steps: [{ command: 'echo fruit=banana animal= color= shape=' }],
+        },
+        'matrix-test-6': {
+          engine: 'nixery',
+          steps: [{ command: 'echo fruit=banana animal=cat color= shape=' }],
+        },
+      });
+    });
+
+    it('converts a matrix with only include', () => {
+      expect(
+        convertWorkflow(
+          workflow({
+            jobs: {
+              test: {
+                strategy: {
+                  matrix: {
+                    include: [{ os: 'linux' }, { os: 'macos' }],
+                  },
+                },
+                steps: [{ run: 'echo ${{ matrix.os }}' }],
+              },
+            },
+          }),
+        ),
+      ).toEqual({
+        'matrix-test-1': {
+          engine: 'nixery',
+          steps: [{ command: 'echo linux' }],
+        },
+        'matrix-test-2': {
+          engine: 'nixery',
+          steps: [{ command: 'echo macos' }],
+        },
+      });
+    });
 
     it('interpolates matrix values into action inputs', () => {
       expect(
@@ -646,8 +707,6 @@ describe('convertWorkflow', () => {
         },
       });
     });
-
-    // TODO: include/exclude
 
     it('throws when a job depends on a matrix job', () => {
       expect(() =>
