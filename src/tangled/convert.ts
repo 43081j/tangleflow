@@ -315,6 +315,11 @@ function matchesMatrixValue(
   return String(value) === String(pattern);
 }
 
+/**
+ * Replace each matrix job with one job per matrix combination, named
+ * `matrix-<job>-1`, `matrix-<job>-2`, and so on. Throws if a matrix job is
+ * linked by `needs`, or if its matrix uses expressions that can't be converted.
+ */
 function expandMatrixJobs(
   jobs: Record<string, NormalJob>,
 ): Record<string, NormalJob> {
