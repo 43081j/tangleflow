@@ -269,10 +269,17 @@ function interpolateMatrixValues(
   matrixContext: Record<string, Configuration>,
 ): unknown {
   if (typeof input === 'string') {
-    return input.replace(
+    const interpolated = input.replace(
       /\$\{\{\s?matrix\.([\w-]+(?:\.[\w-]+)*)\s?\}\}/g,
       (_match, path: string) => resolveMatrixPath(matrixContext, path),
     );
+    // Throw if any `matrix` usage is left that we couldn't replace
+    for (const [expression] of interpolated.matchAll(/\$\{\{.*?\}\}/g)) {
+      if (/(?<![\w.-])matrix\b/.test(expression)) {
+        throw new Error(`Cannot convert matrix expression: ${expression}`);
+      }
+    }
+    return interpolated;
   }
   if (typeof input === 'object' && input !== null && !Array.isArray(input)) {
     const result: Record<string, unknown> = {};

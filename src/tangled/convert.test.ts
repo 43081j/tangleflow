@@ -726,6 +726,21 @@ describe('convertWorkflow', () => {
         ),
       ).toThrow('Cannot convert templated matrix key');
     });
+
+    it('throws on a matrix expression it cannot interpolate', () => {
+      expect(() =>
+        convertWorkflow(
+          workflow({
+            jobs: {
+              test: {
+                strategy: { matrix: { os: ['linux'] } },
+                steps: [{ run: "echo ${{ matrix['os'] }}" }],
+              },
+            },
+          }),
+        ),
+      ).toThrow("Cannot convert matrix expression: ${{ matrix['os'] }}");
+    });
   });
 
   describe('fixtures', () => {
