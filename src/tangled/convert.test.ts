@@ -618,8 +618,34 @@ describe('convertWorkflow', () => {
     //   ).toEqual([]);
     // });
 
-    // it('with reusable action', () => {});
-    // TODO: substitutes matrix values in step `with` (e.g. setup-node `node-version`)
+    it('interpolates matrix values into action inputs', () => {
+      expect(
+        convertWorkflow(
+          workflow({
+            jobs: {
+              test: {
+                strategy: { matrix: { node: [20, 22] } },
+                steps: [
+                  {
+                    uses: 'actions/setup-node@v4',
+                    with: { 'node-version': '${{ matrix.node }}' },
+                  },
+                ],
+              },
+            },
+          }),
+        ),
+      ).toEqual({
+        'test-node-20': {
+          engine: 'nixery',
+          dependencies: { nixpkgs: ['nodejs_20'] },
+        },
+        'test-node-22': {
+          engine: 'nixery',
+          dependencies: { nixpkgs: ['nodejs_22'] },
+        },
+      });
+    });
 
     // TODO: include/exclude
 
