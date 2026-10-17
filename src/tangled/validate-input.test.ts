@@ -69,11 +69,14 @@ describe('validateInput', () => {
           workflow({
             jobs: {
               lint: { 'runs-on': 'x' },
-              test: { 'runs-on': 'x', strategy: { matrix: {} } },
+              test: {
+                'runs-on': 'x',
+                services: { nginx: { image: 'nginx', ports: ['8080:80'] } },
+              },
             },
           }),
         ),
-      ).toThrow('Unsupported key "strategy" in job "test"');
+      ).toThrow('Unsupported key "services" in job "test"');
     });
 
     it('throws on a reusable workflow call', () => {

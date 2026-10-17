@@ -14,6 +14,7 @@ import type {
 } from '../github/types.js';
 import { convertAction } from './actions/convert.js';
 import { groupJobsByNeeds, type JobGroup } from './graph.js';
+import { expandMatrixJobs } from './matrix.js';
 import { validateInput } from './validate-input.js';
 
 /**
@@ -261,11 +262,12 @@ export function convertWorkflow(
   }
 
   const jobs = workflow.jobs as Record<string, NormalJob>;
+  const expandedJobs = expandMatrixJobs(jobs);
 
   const workflows: Record<string, Workflow> = {};
-  for (const group of groupJobsByNeeds(jobs)) {
+  for (const group of groupJobsByNeeds(expandedJobs)) {
     const [firstJobId] = group.ids;
-    workflows[firstJobId!] = toWorkflow(group, jobs, shared);
+    workflows[firstJobId!] = toWorkflow(group, expandedJobs, shared);
   }
   return workflows;
 }

@@ -443,6 +443,80 @@ describe('convertWorkflow', () => {
     });
   });
 
+  describe('strategy', () => {
+    it('converts a matrix into individual workflows', () => {
+      expect(
+        convertWorkflow(
+          workflow({
+            jobs: {
+              test: {
+                strategy: { matrix: { version: [1, 2] } },
+                steps: [
+                  {
+                    name: 'run_with_version_${{ matrix.version }}',
+                    'working-directory': 'projects/${{ matrix.version }}',
+                    run: 'echo ${{matrix.version}}',
+                    env: { version: '${{ matrix.version }}' },
+                  },
+                ],
+              },
+            },
+          }),
+        ),
+      ).toEqual({
+        'matrix-test-1': {
+          engine: 'nixery',
+          steps: [
+            {
+              name: 'run_with_version_1',
+              command: `cd 'projects/1' || exit 1\necho 1`,
+              environment: { version: '1' },
+            },
+          ],
+        },
+        'matrix-test-2': {
+          engine: 'nixery',
+          steps: [
+            {
+              name: 'run_with_version_2',
+              command: `cd 'projects/2' || exit 1\necho 2`,
+              environment: { version: '2' },
+            },
+          ],
+        },
+      });
+    });
+
+    it('interpolates matrix values into action inputs', () => {
+      expect(
+        convertWorkflow(
+          workflow({
+            jobs: {
+              test: {
+                strategy: { matrix: { node: [20, 22] } },
+                steps: [
+                  {
+                    uses: 'actions/setup-node@v4',
+                    with: { 'node-version': '${{ matrix.node }}' },
+                  },
+                ],
+              },
+            },
+          }),
+        ),
+      ).toEqual({
+        'matrix-test-1': {
+          engine: 'nixery',
+          dependencies: { nixpkgs: ['nodejs_20'] },
+        },
+        'matrix-test-2': {
+          engine: 'nixery',
+          dependencies: { nixpkgs: ['nodejs_22'] },
+        },
+      });
+    });
+  });
+
   describe('fixtures', () => {
     it.each(fixtures)('converts %s', async (name) => {
       const dir = `${fixturesDir}/${name}`;

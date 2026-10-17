@@ -29,6 +29,7 @@ const JOB_KEYS = new Set<keyof NormalJob>([
   'permissions',
   'concurrency',
   'timeout-minutes',
+  'strategy',
 ]);
 
 /**
